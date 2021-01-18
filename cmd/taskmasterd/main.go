@@ -7,5 +7,9 @@ import (
 )
 
 func main() {
-	log.Println("I'm alive!");
+	var test taskmaster.S
+
+	test = "lol"
+
+	log.Println("I'm alive!", test)
 }
