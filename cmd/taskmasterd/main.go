@@ -11,5 +11,5 @@ func main() {
 
 	test = "lol"
 
-	log.Println("I'm alive!", test)
+	log.Println("taskmasterd", test)
 }
