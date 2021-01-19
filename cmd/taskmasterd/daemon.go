@@ -19,11 +19,13 @@ func daemonRun() int {
 
 func daemonInit() {
 	if !isDaemon() {
+		log.Print("Starting daemon...")
 		if lockFileExists() {
 			log.Fatal("Daemon lockfile exists: is daemon already running ?")
 		}
 		pid := daemonRun()
 		if pid > 0 {
+			log.Printf("Log file location: %s", logPathArg)
 			log.Fatalf("Daemon launched with PID %d", pid)
 			os.Exit(0)
 		}

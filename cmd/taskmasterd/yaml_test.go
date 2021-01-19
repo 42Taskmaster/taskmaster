@@ -1,45 +1,41 @@
 package main
 
-func TestProgramsRequired (t *testing.T) {
-	programs := ProgramsYaml{
-	}
+import "testing"
 
-	err := programs.Validate()
-	if err != nil {
-		t.Errorf("Validate should have returned an error")
-	}
-	
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
-		if !(validationError.Field == "Programs" && validationError.Issue == ValidationIssueEmptyField) {
-			t.Errorf(
-				"Incorrect error: (%s, %s); expected (%s, %s)",
-				validationError.Field,
-				validationError.Issue,
-				"Programs",
-				ValidationIssueEmptyField
-			)
-			return
-		}
-		return
-	}
-
-	t.Errorf("Returned invalid error")
+func strToPointer(str string) *string {
+	return &str
 }
 
-func TestCmdIsRequired (t *testing.T) {
+func intToPointer(nb int) *int {
+	return &nb
+}
+
+func boolToPointer(b bool) *bool {
+	return &b
+}
+
+func autorestartTypeToPointer(t AutorestartType) *AutorestartType {
+	return &t
+}
+
+func stopSignalToPointer(signal StopSignal) *StopSignal {
+	return &signal
+}
+
+func TestCmdIsRequired(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
 				Cmd: nil,
-			}
+			},
 		},
 	}
 
-	err := programs.Validate()
-	if err != nil {
+	err, _ := programs.Validate()
+	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
-	
+
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
 		if !(validationError.Field == "Programs[taskmaster].Cmd" && validationError.Issue == ValidationIssueEmptyField) {
 			t.Errorf(
@@ -47,7 +43,7 @@ func TestCmdIsRequired (t *testing.T) {
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Cmd",
-				ValidationIssueEmptyField
+				ValidationIssueEmptyField,
 			)
 			return
 		}
@@ -57,19 +53,19 @@ func TestCmdIsRequired (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestNumprocsSetToDefaultValue (t *testing.T) {
+func TestNumprocsSetToDefaultValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: nil
-			}
+				Cmd:      strToPointer("cmd"),
+				Numprocs: nil,
+			},
 		},
 	}
 
-	programs.Validate()
+	_, config := programs.Validate()
 
-	if numprocs := programs.Programs["taskmaster"].Numprocs; numprocs != 1 {
+	if numprocs := config["taskmaster"].Numprocs; numprocs != 1 {
 		t.Errorf(
 			"Numprocs not set to correct default value: %v; expected %v",
 			numprocs,
@@ -78,21 +74,21 @@ func TestNumprocsSetToDefaultValue (t *testing.T) {
 	}
 }
 
-func TestNumprocsIsNotOutsideLowerBounds (t *testing.T) {
+func TestNumprocsIsNotOutsideLowerBounds(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: -1
-			}
+				Cmd:      strToPointer("cmd"),
+				Numprocs: intToPointer(-1),
+			},
 		},
 	}
 
-	err := programs.Validate()
-	if err != nil {
+	err, _ := programs.Validate()
+	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
-	
+
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
 		if !(validationError.Field == "Programs[taskmaster].Numprocs" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
@@ -100,7 +96,7 @@ func TestNumprocsIsNotOutsideLowerBounds (t *testing.T) {
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Numprocs",
-				ValidationIssueValueOutsideBounds
+				ValidationIssueValueOutsideBounds,
 			)
 			return
 		}
@@ -110,21 +106,21 @@ func TestNumprocsIsNotOutsideLowerBounds (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestNumprocsIsNotOutsideUpperBounds (t *testing.T) {
+func TestNumprocsIsNotOutsideUpperBounds(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 200
-			}
+				Cmd:      strToPointer("cmd"),
+				Numprocs: intToPointer(200),
+			},
 		},
 	}
 
-	err := programs.Validate()
-	if err != nil {
+	err, _ := programs.Validate()
+	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
-	
+
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
 		if !(validationError.Field == "Programs[taskmaster].Numprocs" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
@@ -132,7 +128,7 @@ func TestNumprocsIsNotOutsideUpperBounds (t *testing.T) {
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Numprocs",
-				ValidationIssueValueOutsideBounds
+				ValidationIssueValueOutsideBounds,
 			)
 			return
 		}
@@ -142,20 +138,20 @@ func TestNumprocsIsNotOutsideUpperBounds (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestAutostartSetToDefaultValue (t *testing.T) {
+func TestAutostartSetToDefaultValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
+				Cmd:       strToPointer("cmd"),
+				Numprocs:  intToPointer(10),
 				Autostart: nil,
-			}
+			},
 		},
 	}
 
-	programs.Validate()
+	_, config := programs.Validate()
 
-	if autostart := programs.Programs["taskmaster"].Autostart; autostart != 1 {
+	if autostart := config["taskmaster"].Autostart; autostart != true {
 		t.Errorf(
 			"Autostart not set to correct default value: %v; expected %v",
 			autostart,
@@ -164,21 +160,21 @@ func TestAutostartSetToDefaultValue (t *testing.T) {
 	}
 }
 
-func TestAutorestartSetToDefaultValue (t *testing.T) {
+func TestAutorestartSetToDefaultValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
-				Autostart: true,
+				Cmd:         strToPointer("cmd"),
+				Numprocs:    intToPointer(10),
+				Autostart:   boolToPointer(true),
 				Autorestart: nil,
-			}
+			},
 		},
 	}
 
-	programs.Validate()
+	_, config := programs.Validate()
 
-	if autorestart := programs.Programs["taskmaster"].Autorestart; autorestart != AutorestartUnexpected {
+	if autorestart := config["taskmaster"].Autorestart; autorestart != AutorestartUnexpected {
 		t.Errorf(
 			"Autorestart not set to correct default value: %v; expected %v",
 			autorestart,
@@ -187,48 +183,48 @@ func TestAutorestartSetToDefaultValue (t *testing.T) {
 	}
 }
 
-func TestAutorestartIsValidValue (t *testing.T) {
+func TestAutorestartIsValidValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
-				Autostart: true,
-				Autorestart: AutorestartOn,
-			}
+				Cmd:         strToPointer("cmd"),
+				Numprocs:    intToPointer(10),
+				Autostart:   boolToPointer(true),
+				Autorestart: autorestartTypeToPointer(AutorestartOn),
+			},
 		},
 	}
 
-	err := programs.Validate()
+	err, _ := programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOn)
 	}
 
-	programs.Programs["taskmaster"].Autorestart = AutorestartOff
+	*programs.Programs["taskmaster"].Autorestart = AutorestartOff
 
-	err = programs.Validate()
+	err, _ = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOff)
 	}
 
-	programs.Programs["taskmaster"].Autorestart = AutorestartUnexpected
+	*programs.Programs["taskmaster"].Autorestart = AutorestartUnexpected
 
-	err = programs.Validate()
+	err, _ = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartUnexpected)
 	}
 
-	programs.Programs["taskmaster"].Autorestart = "Invalid value"
+	*programs.Programs["taskmaster"].Autorestart = "Invalid value"
 
-	err = programs.Validate()
+	err, _ = programs.Validate()
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
-		if !(validationError.Field == "Programs[taskmaster].Autorestart" && validationError.Issue == ValidationIssueUnexpectedValue
+		if !(validationError.Field == "Programs[taskmaster].Autorestart" && validationError.Issue == ValidationIssueUnexpectedValue) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Autorestart",
-				ValidationIssueUnexpectedValue
+				ValidationIssueUnexpectedValue,
 			)
 			return
 		}
@@ -238,22 +234,22 @@ func TestAutorestartIsValidValue (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestStarttimeSetToDefaultValue (t *testing.T) {
+func TestStarttimeSetToDefaultValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
-				Autostart: true,
-				Autorestart: AutorestartOn,
-				Starttime: nil,
-			}
+				Cmd:         strToPointer("cmd"),
+				Numprocs:    intToPointer(10),
+				Autostart:   boolToPointer(true),
+				Autorestart: autorestartTypeToPointer(AutorestartOn),
+				Starttime:   nil,
+			},
 		},
 	}
 
-	programs.Validate()
+	_, config := programs.Validate()
 
-	if starttime := programs.Programs["taskmaster"].Starttime; starttime != 1 {
+	if starttime := config["taskmaster"].Starttime; starttime != 1 {
 		t.Errorf(
 			"Starttime not set to correct default value: %v; expected %v",
 			starttime,
@@ -262,32 +258,32 @@ func TestStarttimeSetToDefaultValue (t *testing.T) {
 	}
 }
 
-func TestStarttimeIsNotOutsideLowerBounds (t *testing.T) {
+func TestStarttimeIsNotOutsideLowerBounds(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
-				Autostart: true,
-				Autorestart: AutorestartOn,
-				Starttime: -1,
-			}
+				Cmd:         strToPointer("cmd"),
+				Numprocs:    intToPointer(10),
+				Autostart:   boolToPointer(true),
+				Autorestart: autorestartTypeToPointer(AutorestartOn),
+				Starttime:   intToPointer(-1),
+			},
 		},
 	}
 
-	err := programs.Validate()
-	if err != nil {
+	err, _ := programs.Validate()
+	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
 
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
-		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueEmptyField) {
+		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Starttime",
-				ValidationIssueValueOutsideBounds
+				ValidationIssueValueOutsideBounds,
 			)
 			return
 		}
@@ -297,32 +293,32 @@ func TestStarttimeIsNotOutsideLowerBounds (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestStarttimeIsNotOutsideUpperBounds (t *testing.T) {
+func TestStarttimeIsNotOutsideUpperBounds(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
+		Programs: map[string]ProgramYaml{
 			"taskmaster": {
-				Cmd: "cmd",
-				Numprocs: 10,
-				Autostart: true,
-				Autorestart: AutorestartOn,
-				Starttime: 100000,
-			}
+				Cmd:         strToPointer("cmd"),
+				Numprocs:    intToPointer(10),
+				Autostart:   boolToPointer(true),
+				Autorestart: autorestartTypeToPointer(AutorestartOn),
+				Starttime:   intToPointer(100000),
+			},
 		},
 	}
 
-	err := programs.Validate()
-	if err != nil {
+	err, _ := programs.Validate()
+	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
 
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
-		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueEmptyField) {
+		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
 				validationError.Field,
 				validationError.Issue,
 				"Programs[taskmaster].Starttime",
-				ValidationIssueValueOutsideBounds
+				ValidationIssueValueOutsideBounds,
 			)
 			return
 		}
@@ -332,25 +328,396 @@ func TestStarttimeIsNotOutsideUpperBounds (t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestProgramYamlValidation(t *testing.T) {
+func TestStartretriesSetToDefaultValue(t *testing.T) {
 	programs := ProgramsYaml{
-		Programs: {
-			{
-				Cmd: nil,
-				Numprocs: ,
-				Umask: ,
-				Workingdir: ,
-				Autostart: ,
-				Autorestart: ,
-				Exitcodes: ,
-				Startretries: ,
-				Starttime: ,
-				Stopsignal: ,
-				Stoptime: ,
-				Stdout: ,
-				Stderr: ,
-				Env: ,
-			}
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: nil,
+			},
+		},
+	}
+
+	_, config := programs.Validate()
+
+	if startretries := config["taskmaster"].Startretries; startretries != 3 {
+		t.Errorf(
+			"Startretries not set to correct default value: %v; expected %v",
+			startretries,
+			3,
+		)
+	}
+}
+
+func TestStartretriesIsNotOutsideLowerBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(-1),
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+	}
+
+	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+		if !(validationError.Field == "Programs[taskmaster].Startretries" && validationError.Issue == ValidationIssueValueOutsideBounds) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Startretries",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
 		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestStartretriesIsNotOutsideUpperBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(50),
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+	}
+
+	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+		if !(validationError.Field == "Programs[taskmaster].Startretries" && validationError.Issue == ValidationIssueValueOutsideBounds) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Startretries",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestStopsignalSetToDefaultValue(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   nil,
+			},
+		},
+	}
+
+	_, config := programs.Validate()
+
+	if stopsignal := config["taskmaster"].Stopsignal; stopsignal != StopSignalTerm {
+		t.Errorf(
+			"Stopsignal not set to correct default value: %v; expected %v",
+			stopsignal,
+			StopSignalTerm,
+		)
+	}
+}
+
+func TestStopsignalIsValidValue(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalTerm)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalHup
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalHup)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalInt
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalInt)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalQuit
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalQuit)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalKill
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalKill)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalUsr1
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalUsr1)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = StopSignalUsr2
+
+	err, _ = programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for Stopsignal = %s", StopSignalUsr2)
+	}
+
+	*programs.Programs["taskmaster"].Stopsignal = "Invalid value"
+
+	err, _ = programs.Validate()
+	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+		if !(validationError.Field == "Programs[taskmaster].Stopsignal" && validationError.Issue == ValidationIssueUnexpectedValue) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Stopsignal",
+				ValidationIssueUnexpectedValue,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestStoptimeSetToDefaultValue(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     nil,
+			},
+		},
+	}
+
+	_, config := programs.Validate()
+
+	if stoptime := config["taskmaster"].Stoptime; stoptime != 10 {
+		t.Errorf(
+			"Stoptime not set to correct default value: %v; expected %v",
+			stoptime,
+			intToPointer(10),
+		)
+	}
+}
+
+func TestStoptimeIsNotOutsideLowerBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     intToPointer(-1),
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+	}
+
+	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+		if !(validationError.Field == "Programs[taskmaster].Stoptime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Stoptime",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestStoptimeIsNotOutsideUpperBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     intToPointer(5000),
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+	}
+
+	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+		if !(validationError.Field == "Programs[taskmaster].Stoptime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Stoptime",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestStdoutSetToDefaultValue(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     intToPointer(60),
+				Stdout:       nil,
+			},
+		},
+	}
+
+	_, config := programs.Validate()
+
+	if stdout := config["taskmaster"].Stdout; stdout != string(StdTypeAuto) {
+		t.Errorf(
+			"Stdout not set to correct default value: %v; expected %v",
+			stdout,
+			string(StdTypeAuto),
+		)
+	}
+}
+
+func TestStderrSetToDefaultValue(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("cmd"),
+				Numprocs:     intToPointer(10),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Starttime:    intToPointer(5),
+				Startretries: intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     intToPointer(60),
+				Stderr:       nil,
+			},
+		},
+	}
+
+	_, config := programs.Validate()
+
+	if stderr := config["taskmaster"].Stderr; stderr != string(StdTypeAuto) {
+		t.Errorf(
+			"Stderr not set to correct default value: %v; expected %v",
+			stderr,
+			string(StdTypeAuto),
+		)
+	}
+}
+
+func TestParsesValidFullConfiguration(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:          strToPointer("echo"),
+				Numprocs:     intToPointer(1),
+				Umask:        strToPointer("066"),
+				Workingdir:   strToPointer("/dir"),
+				Autostart:    boolToPointer(true),
+				Autorestart:  autorestartTypeToPointer(AutorestartOn),
+				Exitcodes:    []int{0},
+				Startretries: intToPointer(3),
+				Starttime:    intToPointer(10),
+				Stopsignal:   stopSignalToPointer(StopSignalTerm),
+				Stoptime:     intToPointer(10),
+				Stdout:       strToPointer("/dev/stdout"),
+				Stderr:       strToPointer("/dev/stderr"),
+				Env: map[string]string{
+					"TERM": "DUMB",
+				},
+			},
+		},
+	}
+
+	err, _ := programs.Validate()
+	if err != nil {
+		t.Errorf("Validation error on valid configuration: %v", err)
 	}
 }

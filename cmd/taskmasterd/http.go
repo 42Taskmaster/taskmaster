@@ -7,10 +7,10 @@ import (
 	"strconv"
 )
 
-type HttpEndpointFn func(http.ResponseWriter, *http.Request)
-type HttpEndpointClosure func(*ProgramManager) HttpEndpointFn
+type HttpHandleFunc func(http.ResponseWriter, *http.Request)
+type HttpEndpointFunc func(programManager *ProgramManager, w http.ResponseWriter, r *http.Request)
 
-var httpEndpoints = map[string]HttpEndpointClosure{
+var httpEndpoints = map[string]HttpEndpointFunc{
 	"/status":        httpEndpointStatus,
 	"/start":         httpEndpointStart,
 	"/stop":          httpEndpointStop,
@@ -20,79 +20,87 @@ var httpEndpoints = map[string]HttpEndpointClosure{
 	"/":              httpNotFound,
 }
 
-func httpEndpointStatus(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			fmt.Fprintf(w, "%+v\n", programManager)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		fmt.Fprintf(w, "%d programs\n", len(programManager.programs))
+		for _, program := range programManager.programs {
+			fmt.Fprintf(w, "%s: %s\n", program.Config.Name, program.State)
 		}
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpEndpointStart(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			fmt.Fprintf(w, "start")
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		err := r.ParseForm()
+		if err != nil {
+			log.Print(err)
 		}
+		fmt.Fprint(w, r.Form.Get("programName"))
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpEndpointStop(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			fmt.Fprintf(w, "stop")
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		fmt.Fprint(w, "stop")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpEndpointRestart(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			fmt.Fprintf(w, "restart")
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		fmt.Fprint(w, "restart")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpEndpointConfiguration(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			fmt.Fprintf(w, "GET configuration")
-		} else if r.Method == "PUT" {
-			fmt.Fprintf(w, "PUT configuration")
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		fmt.Fprint(w, "get start")
+	case "PUT":
+		fmt.Fprint(w, "put start")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpEndpointShutdown(programManager *ProgramManager) HttpEndpointFn {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "DELETE" {
-			fmt.Fprintf(w, "shutdown")
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+func httpEndpointShutdown(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "DELETE":
+		fmt.Fprint(w, "shutdown")
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func httpNotFound(programManager *ProgramManager) HttpEndpointFn {
+func httpNotFound(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func httpHandleEndpoint(programManager *ProgramManager, callback HttpEndpointFunc) HttpHandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+		callback(programManager, w, r)
+		log.Println(r.RemoteAddr, r.Method, r.RequestURI)
 	}
 }
 
 func httpSetup(programManager *ProgramManager) {
-	for endpoint, callback := range httpEndpoints {
-		http.HandleFunc(endpoint, callback(programManager))
+	for uri, callback := range httpEndpoints {
+		http.HandleFunc(uri, httpHandleEndpoint(programManager, callback))
 	}
 }
 
 func httpListenAndServe() {
+	log.Printf("Launching HTTP REST API on port :%d", portArg)
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(portArg), nil))
 }

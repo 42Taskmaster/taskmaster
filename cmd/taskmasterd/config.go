@@ -18,20 +18,25 @@ func configFileExists() bool {
 
 func configCheckPath() {
 	if !configFileExists() {
-		errorMsg := configPathArg
+		log.Printf("Could not find config file: %s", configPathArg)
 		if configPathArg == configDefaultPath {
-			errorMsg += "\nUse -c option to specify your config file location"
+			log.Print("Use -c option to specify your config file location")
 		}
-		log.Fatalf("Could not find config file: %s", errorMsg)
+		os.Exit(1)
 	}
 }
 
-func configParse() ProgramsYaml {
+func configParse() (ProgramsConfiguration, error) {
 	configCheckPath()
 
 	yamlData, err := ioutil.ReadFile(configPathArg)
 	if err != nil {
-		log.Panic(err)
+		return ProgramsConfiguration{}, err
 	}
-	return yamlParse(yamlData)
+
+	parsedPrograms := yamlParse(yamlData)
+
+	programsConfiguration, err := parsedPrograms.Validate()
+
+	return programsConfiguration, err
 }

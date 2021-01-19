@@ -9,17 +9,13 @@ const (
 )
 
 type ProgramTask struct {
-	programTaskAction ProgramTaskAction
-	programName       string
+	action  ProgramTaskAction
+	program *Program
 }
 
 func NewProgramTask(program *Program, programTaskAction ProgramTaskAction) ProgramTask {
 	return ProgramTask{
-		programTaskAction: programTaskAction,
-		programName:       program.yaml.Name,
+		action:  programTaskAction,
+		program: program,
 	}
-}
-
-func (programTask *ProgramTask) Execute() {
-
 }

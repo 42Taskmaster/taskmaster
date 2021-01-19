@@ -1,11 +1,27 @@
 package main
 
+import (
+	"log"
+	"os"
+)
+
 func main() {
 	argsParse()
 
-	programsYaml := configParse()
+	logLogo()
+
+	programsConfiguration, err := configParse()
+	if err != nil {
+		log.Fatalf("Error parsing configuration file: %s: %v\n", configPathArg, err)
+	}
 
 	daemonInit()
+
+	// Daemon only code
+
+	logSetup()
+	logLogo()
+	log.Printf("Started as daemon with PID %d", os.Getpid())
 
 	lockFileCreate()
 	defer lockFileRemove()
@@ -13,9 +29,7 @@ func main() {
 	signalsSetup()
 
 	programManager := NewProgramManager()
-	programManager.programs = programsParse(programsYaml)
-
-	//programManager.StartPrograms()
+	programManager.programs = programsParse(programsConfiguration)
 
 	httpSetup(programManager)
 	httpListenAndServe()

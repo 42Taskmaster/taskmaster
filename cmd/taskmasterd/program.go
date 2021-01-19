@@ -12,9 +12,9 @@ import (
 type Programs map[string]*Program
 
 type Program struct {
-	cmds  []*exec.Cmd
-	yaml  ProgramYaml
-	state ProgramState
+	Cmds   []*exec.Cmd
+	Config ProgramConfig
+	State  ProgramState
 }
 
 type ProgramState string
@@ -30,41 +30,31 @@ const (
 	ProgramStateUnknown  ProgramState = "UNKNOWN"
 )
 
-func (program *Program) GetExitcodes() []int {
-	switch exitcodes := program.yaml.Exitcodes.(type) {
-	case int:
-		return []int{exitcodes}
-	case []int:
-		return exitcodes
-	default:
-		return []int{0}
-	}
-}
-
 func (program *Program) Start() {
-
+	program.State = ProgramStateStarting
 }
 
 func (program *Program) Stop() {
-
+	program.State = ProgramStateStopping
 }
 
 func (program *Program) Restart() {
-
+	program.Stop()
+	program.Start()
 }
 
-func programParse(programYaml ProgramYaml) *Program {
+func programParse(config ProgramConfig) *Program {
 	var stdoutWrite, stderrWrite io.Writer
 
-	if len(*programYaml.Stdout) > 0 {
-		stdoutFile, err := os.OpenFile(*programYaml.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if len(config.Stdout) > 0 {
+		stdoutFile, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
 		stdoutWrite = bufio.NewWriter(stdoutFile)
 	}
-	if len(*programYaml.Stderr) > 0 {
-		stderrFile, err := os.OpenFile(*programYaml.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if len(config.Stderr) > 0 {
+		stderrFile, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,14 +62,14 @@ func programParse(programYaml ProgramYaml) *Program {
 	}
 
 	env := []string{}
-	for name, value := range programYaml.Env {
+	for name, value := range config.Env {
 		env = append(env, name+"="+value)
 	}
 
 	cmds := []*exec.Cmd{}
 
-	for i := 0; i < *programYaml.Numprocs; i++ {
-		cmd := exec.Command(*programYaml.Cmd)
+	for i := 0; i < config.Numprocs; i++ {
+		cmd := exec.Command(config.Cmd)
 		cmd.Env = append(os.Environ(), env...)
 		cmd.Stdin = nil
 		cmd.Stdout = stdoutWrite
@@ -92,16 +82,16 @@ func programParse(programYaml ProgramYaml) *Program {
 	}
 
 	return &Program{
-		cmds: cmds,
-		yaml: programYaml,
+		Cmds:   cmds,
+		Config: config,
 	}
 }
 
-func programsParse(programsYaml ProgramsYaml) Programs {
+func programsParse(config ProgramsConfiguration) Programs {
 	parsedPrograms := make(Programs)
 
-	for name, programYaml := range programsYaml.Programs {
-		parsedPrograms[name] = programParse(programYaml)
+	for name, program := range config {
+		parsedPrograms[name] = programParse(program)
 	}
 
 	return parsedPrograms

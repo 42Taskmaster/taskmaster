@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type ProgramManager struct {
 	programs        Programs
 	programTaskChan chan ProgramTask
@@ -16,26 +18,55 @@ func (programManager *ProgramManager) Init() {
 
 	go func() {
 		for programTask := range programTaskChan {
-			programTask.Execute()
+			if programTask.action == ProgramTaskActionStart {
+				programTask.program.Start()
+			} else if programTask.action == ProgramTaskActionStop {
+				programTask.program.Stop()
+			} else if programTask.action == ProgramTaskActionRestart {
+				programTask.program.Restart()
+			}
 		}
 	}()
 }
 
-// func (programManager *ProgramManager) GetProgramByName(name string) *Program {
-// 	for _, program := range programs {
-// 		if program.yaml.Name == name {
-// 			return program
-// 		}
-// 	}
-// 	return nil
-// }
+func (programManager *ProgramManager) GetProgramByName(name string) *Program {
+	for _, program := range programManager.programs {
+		if program.Config.Name == name {
+			return program
+		}
+	}
+	return nil
+}
 
-// func (programManager *ProgramManager) StartProgramByName(name string) error {
-// 	program := GetProgramByName(name)
-// 	if program == nil {
-// 		return fmt.Errorf("Program not found: \"%s\"", name)
-// 	}
-// }
+func (programManager *ProgramManager) StartAllPrograms() {
+	for _, program := range programManager.programs {
+		programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
+	}
+}
+
+func (programManager *ProgramManager) StopAllPrograms() {
+	for _, program := range programManager.programs {
+		programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStop)
+	}
+}
+
+func (programManager *ProgramManager) StartProgramByName(name string) error {
+	program := programManager.GetProgramByName(name)
+	if program == nil {
+		return fmt.Errorf("Program not found: \"%s\"", name)
+	}
+	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
+	return nil
+}
+
+func (programManager *ProgramManager) StopProgramByName(name string) error {
+	program := programManager.GetProgramByName(name)
+	if program == nil {
+		return fmt.Errorf("Program not found: \"%s\"", name)
+	}
+	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStop)
+	return nil
+}
 
 // func (programManager *ProgramManager) StartProgram(program *Program) {
 // 	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
