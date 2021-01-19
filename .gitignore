@@ -14,5 +14,7 @@
 .env
 .idea
 
-./taskmasterd
-./taskmastersh
+taskmasterd
+taskmastersh
+!cmd/taskmasterd
+!cmd/taskmastersh

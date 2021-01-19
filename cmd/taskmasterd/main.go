@@ -1,15 +1,22 @@
 package main
 
-import (
-	"log"
-
-	"github.com/VisorRaptors/taskmaster"
-)
-
 func main() {
-	var test taskmaster.S
+	argsParse()
 
-	test = "lol"
+	programsYaml := configParse()
 
-	log.Println("taskmasterd", test)
+	daemonInit()
+
+	lockFileCreate()
+	defer lockFileRemove()
+
+	signalsSetup()
+
+	programManager := NewProgramManager()
+	programManager.programs = programsParse(programsYaml)
+
+	//programManager.StartPrograms()
+
+	httpSetup(programManager)
+	httpListenAndServe()
 }

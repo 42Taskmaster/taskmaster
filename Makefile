@@ -1,10 +1,15 @@
 all: taskmasterd taskmastersh
 
-taskmasterd:
-	go build -o taskmasterd cmd/taskmasterd/main.go
+D_SRCS := $(wildcard cmd/taskmasterd/*.go)
+SH_SRCS := $(wildcard cmd/taskmastersh/*.go)
 
-taskmastersh:
-	go build -o taskmastersh cmd/taskmastersh/main.go
+taskmasterd: $(D_SRCS)
+	go build -o taskmasterd $(D_SRCS)
+
+taskmastersh: $(SH_SRCS)
+	go build -o taskmastersh $(SH_SRCS)
 
 clean:
-	rm taskmasterd taskmastersh
+	rm -rf taskmasterd taskmastersh
+
+re: clean all
