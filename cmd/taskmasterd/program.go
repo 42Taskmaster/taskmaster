@@ -2,19 +2,18 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"syscall"
 )
 
 type Programs map[string]*Program
 
 type Program struct {
-	Cmds   []*exec.Cmd
-	Config ProgramConfig
-	State  ProgramState
+	Processes []*Process
+	Config    ProgramConfig
 }
 
 type ProgramState string
@@ -31,11 +30,25 @@ const (
 )
 
 func (program *Program) Start() {
-	program.State = ProgramStateStarting
+	log.Println("start is called")
+	for _, process := range program.Processes {
+		_, err := process.Machine.Send(ProcessEventStart)
+		if err != nil {
+			log.Println(err)
+		}
+		if errors.Is(err, syscall.ENOENT) {
+			log.Println("can not launch process as the command does not exist")
+		}
+	}
 }
 
 func (program *Program) Stop() {
-	program.State = ProgramStateStopping
+	for _, process := range program.Processes {
+		_, err := process.Machine.Send(ProcessEventStop)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (program *Program) Restart() {
@@ -43,47 +56,53 @@ func (program *Program) Restart() {
 	program.Start()
 }
 
+func (program *Program) GetState() string {
+	return "OK"
+}
+
 func programParse(config ProgramConfig) *Program {
-	var stdoutWrite, stderrWrite io.Writer
+	var stdoutWriter, stderrWriter io.Writer
 
 	if len(config.Stdout) > 0 {
 		stdoutFile, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
-		stdoutWrite = bufio.NewWriter(stdoutFile)
+		stdoutWriter = bufio.NewWriter(stdoutFile)
 	}
 	if len(config.Stderr) > 0 {
 		stderrFile, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
-		stderrWrite = bufio.NewWriter(stderrFile)
+		stderrWriter = bufio.NewWriter(stderrFile)
 	}
 
-	env := []string{}
+	env := os.Environ()
 	for name, value := range config.Env {
-		env = append(env, name+"="+value)
+		concatenatedKeyValue := name + "=" + value
+
+		env = append(env, concatenatedKeyValue)
 	}
 
-	cmds := []*exec.Cmd{}
+	processes := []*Process{}
 
-	for i := 0; i < config.Numprocs; i++ {
-		cmd := exec.Command(config.Cmd)
-		cmd.Env = append(os.Environ(), env...)
-		cmd.Stdin = nil
-		cmd.Stdout = stdoutWrite
-		cmd.Stderr = stderrWrite
-		cmd.ExtraFiles = nil
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Setsid: true,
-		}
-		cmds = append(cmds, cmd)
+	for index := 0; index < config.Numprocs; index++ {
+		process := NewProcess(NewProcessArgs{
+			ID:         index,
+			Cmd:        config.Cmd,
+			Env:        env,
+			Stdout:     stdoutWriter,
+			Stderr:     stderrWriter,
+			StopSignal: config.Stopsignal,
+		})
+
+		processes = append(processes, process)
 	}
 
 	return &Program{
-		Cmds:   cmds,
-		Config: config,
+		Processes: processes,
+		Config:    config,
 	}
 }
 
