@@ -67,18 +67,11 @@ func TestOnOffMachine(t *testing.T) {
 	if err == nil {
 		t.Error("returned no error when we expected one")
 	}
-	var invalidTransitionErr *machine.ErrInvalidTransition
-	if !errors.As(err, &invalidTransitionErr) {
-		t.Fatalf(
-			"returned error is not of expected type %v",
-			err,
-		)
-	}
-	if invalidTransitionErr.Reason != machine.InvalidTransitionNotImplemented {
+	if !errors.Is(err, machine.ErrInvalidTransitionNotImplemented) {
 		t.Fatalf(
 			"returned error is not caused by what we expected %v; expected %v",
-			invalidTransitionErr.Reason,
-			machine.InvalidTransitionNotImplemented,
+			err,
+			machine.ErrInvalidTransitionNotImplemented,
 		)
 	}
 

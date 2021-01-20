@@ -8,24 +8,25 @@ import (
 // ErrUnexpectedBehavior represents an invalid operation we could not perform nor identify.
 var ErrUnexpectedBehavior = errors.New("unexpected behavior")
 
-// InvalidTransitionReason represents the reason why a transition could not be performed.
-type InvalidTransitionReason string
-
 // All reasons why a transition could not be performed.
-const (
-	InvalidTransitionInvalidCurrentState     InvalidTransitionReason = "current state is unexpected"
-	InvalidTransitionFinalState              InvalidTransitionReason = "final state reached"
-	InvalidTransitionNotImplemented          InvalidTransitionReason = "transition not implemented"
-	InvalidTransitionNextStateNotImplemented InvalidTransitionReason = "next state is not implemented"
+var (
+	ErrInvalidTransitionInvalidCurrentState     = errors.New("current state is unexpected")
+	ErrInvalidTransitionFinalState              = errors.New("final state reached")
+	ErrInvalidTransitionNotImplemented          = errors.New("transition not implemented")
+	ErrInvalidTransitionNextStateNotImplemented = errors.New("next state is not implemented")
 )
 
 // ErrInvalidTransition means a transition could not be performed, holding the reason why.
 type ErrInvalidTransition struct {
-	Reason InvalidTransitionReason
+	Err error
+}
+
+func (err *ErrInvalidTransition) Unwrap() error {
+	return err.Err
 }
 
 func (err ErrInvalidTransition) Error() string {
-	return "invalid transition: " + string(err.Reason)
+	return "invalid transition: " + err.Err.Error()
 }
 
 // ErrTransition represents an error that occured while transitioning to a new state.
@@ -100,20 +101,20 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 	currentState, ok := machine.StateNodes[machine.Current]
 	if !ok {
 		return NoopState, &ErrInvalidTransition{
-			Reason: InvalidTransitionInvalidCurrentState,
+			Err: ErrInvalidTransitionInvalidCurrentState,
 		}
 	}
 
 	if currentState.On == nil {
 		return NoopState, &ErrInvalidTransition{
-			Reason: InvalidTransitionFinalState,
+			Err: ErrInvalidTransitionFinalState,
 		}
 	}
 
 	nextState, ok := currentState.On[event]
 	if !ok {
 		return NoopState, &ErrInvalidTransition{
-			Reason: InvalidTransitionNotImplemented,
+			Err: ErrInvalidTransitionNotImplemented,
 		}
 	}
 
@@ -153,7 +154,7 @@ func (machine *Machine) Send(event EventType) (StateType, error) {
 			return NoopState, &ErrTransition{
 				Event: event,
 				Err: &ErrInvalidTransition{
-					Reason: InvalidTransitionNextStateNotImplemented,
+					Err: ErrInvalidTransitionNextStateNotImplemented,
 				},
 			}
 		}
