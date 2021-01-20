@@ -17,6 +17,9 @@
 *.lock
 *.log
 
+infinite
+infinite.go
+
 taskmasterd
 taskmastersh
 !cmd/taskmasterd

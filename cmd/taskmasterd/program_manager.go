@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/VisorRaptors/taskmaster/machine"
 )
 
 type ProgramManager struct {
@@ -28,17 +26,6 @@ func (programManager *ProgramManager) Init() {
 				programTask.Program.Stop()
 			} else if programTask.Action == ProgramTaskActionRestart {
 				programTask.Program.Restart()
-			} else if programTask.Action == ProgramTaskActionGetMachineCurrent {
-				programsStatuses := make(map[string]map[int]machine.StateType)
-				for _, program := range programManager.Programs {
-					processesStatuses := make(map[int]machine.StateType)
-					for _, process := range program.Processes {
-						processesStatuses[process.ID] = process.Machine.Current()
-					}
-					programsStatuses[program.Config.Name] = processesStatuses
-				}
-				programTask.ResponseCh <- programsStatuses
-				close(programTask.ResponseCh)
 			}
 		}
 	}()
@@ -60,36 +47,6 @@ func (programManager *ProgramManager) StartPrograms() {
 			Program: program,
 		}
 	}
-}
-
-func (programManager *ProgramManager) GetProgramsStatus() map[string]map[int]machine.StateType {
-	var (
-		programsStatuses map[string]map[int]machine.StateType
-		statusesCh       = make(chan interface{})
-
-		doneCh = make(chan struct{})
-	)
-
-	go func() {
-		response := <-statusesCh
-
-		status := response.(map[string]map[int]machine.StateType)
-		programsStatuses = status
-
-		close(doneCh)
-	}()
-
-	for _, program := range programManager.Programs {
-		programManager.ProgramTaskChan <- ProgramTask{
-			Action:     ProgramTaskActionGetMachineCurrent,
-			Program:    program,
-			ResponseCh: statusesCh,
-		}
-	}
-
-	<-doneCh
-
-	return programsStatuses
 }
 
 func (programManager *ProgramManager) StopPrograms() {

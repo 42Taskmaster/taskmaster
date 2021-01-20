@@ -23,11 +23,10 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		programsStatuses := programManager.GetProgramsStatus()
-		for name, processMap := range programsStatuses {
-			fmt.Fprintf(w, "%s: %s\n", name, "OK")
-			for id, stateType := range processMap {
-				fmt.Fprintf(w, "  %v: %s\n", id, stateType)
+		for name, program := range programManager.Programs {
+			fmt.Fprintf(w, "%s: %s\n", name, program.GetState())
+			for _, process := range program.Processes {
+				fmt.Fprintf(w, "  %v: %s\n", process.ID, process.Machine.Current())
 			}
 		}
 	default:

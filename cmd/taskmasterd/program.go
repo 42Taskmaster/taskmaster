@@ -100,7 +100,7 @@ func programParse(config ProgramConfig) *Program {
 
 	processes := []*Process{}
 
-	for index := 0; index < config.Numprocs; index++ {
+	for index := 1; index <= config.Numprocs; index++ {
 		process := NewProcess(NewProcessArgs{
 			ID:      index,
 			Program: program,
