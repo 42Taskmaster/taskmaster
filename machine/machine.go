@@ -2,6 +2,7 @@ package machine
 
 import (
 	"errors"
+	"strconv"
 	"sync"
 )
 
@@ -10,11 +11,18 @@ var ErrUnexpectedBehavior = errors.New("unexpected behavior")
 
 // All reasons why a transition could not be performed.
 var (
-	ErrInvalidTransitionInvalidCurrentState     = errors.New("current state is unexpected")
-	ErrInvalidTransitionFinalState              = errors.New("final state reached")
-	ErrInvalidTransitionNotImplemented          = errors.New("transition not implemented")
-	ErrInvalidTransitionNextStateNotImplemented = errors.New("next state is not implemented")
+	ErrInvalidTransitionInvalidCurrentState = errors.New("current state is unexpected")
+	ErrInvalidTransitionFinalState          = errors.New("final state reached")
+	ErrInvalidTransitionNotImplemented      = errors.New("transition not implemented")
 )
+
+type ErrInvalidTransitionNextStateNotImplemented struct {
+	NextState StateType
+}
+
+func (err *ErrInvalidTransitionNextStateNotImplemented) Error() string {
+	return "next state is not implemented: " + string(err.NextState)
+}
 
 // ErrInvalidTransition means a transition could not be performed, holding the reason why.
 type ErrInvalidTransition struct {
@@ -43,6 +51,19 @@ func (err *ErrTransition) Error() string {
 	return "could not transition to: " + string(err.Event) + ": " + err.Err.Error()
 }
 
+type ErrAction struct {
+	ID  int
+	Err error
+}
+
+func (err *ErrAction) Unwrap() error {
+	return err.Err
+}
+
+func (err *ErrAction) Error() string {
+	return "error in action of index: " + strconv.Itoa(err.ID) + ": " + err.Err.Error()
+}
+
 // StateType represents a state described in the state machine.
 type StateType string
 
@@ -66,7 +87,7 @@ type Context interface{}
 
 // An Action is performed when the machine is transitioning to the node where it's defined.
 // It takes machine context and returns an event to send to the machine itself, or NoopEvent.
-type Action func(Context) EventType
+type Action func(Context) (EventType, error)
 
 // Events map holds events to listen with the state to transition to when triggered.
 type Events map[EventType]StateType
@@ -121,17 +142,23 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 	return nextState, nil
 }
 
-func (machine *Machine) executeActions(stateNode StateNode) EventType {
-	for _, actionToRun := range stateNode.Actions {
-		stateToReach := actionToRun(machine.Context)
+func (machine *Machine) executeActions(stateNode StateNode) (EventType, error) {
+	for index, actionToRun := range stateNode.Actions {
+		stateToReach, err := actionToRun(machine.Context)
+		if err != nil {
+			return NoopEvent, &ErrAction{
+				ID:  index,
+				Err: err,
+			}
+		}
 		if stateToReach == NoopEvent {
 			continue
 		}
 
-		return stateToReach
+		return stateToReach, nil
 	}
 
-	return NoopEvent
+	return NoopEvent, nil
 }
 
 // Send an event to the state machine.
@@ -154,7 +181,9 @@ func (machine *Machine) Send(event EventType) (StateType, error) {
 			return NoopState, &ErrTransition{
 				Event: event,
 				Err: &ErrInvalidTransition{
-					Err: ErrInvalidTransitionNextStateNotImplemented,
+					Err: &ErrInvalidTransitionNextStateNotImplemented{
+						NextState: nextState,
+					},
 				},
 			}
 		}
@@ -166,7 +195,13 @@ func (machine *Machine) Send(event EventType) (StateType, error) {
 			return nextState, nil
 		}
 
-		eventToSend := machine.executeActions(nextStateNode)
+		eventToSend, err := machine.executeActions(nextStateNode)
+		if err != nil {
+			return NoopState, &ErrTransition{
+				Event: event,
+				Err:   err,
+			}
+		}
 		if eventToSend == NoopEvent {
 			return nextState, nil
 		}
