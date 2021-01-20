@@ -2,7 +2,6 @@ package machine
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 )
 
@@ -110,8 +109,6 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 			Reason: InvalidTransitionFinalState,
 		}
 	}
-
-	fmt.Printf("currentState, event = %+v, %+v\n", currentState, event)
 
 	nextState, ok := currentState.On[event]
 	if !ok {
