@@ -34,7 +34,7 @@ func TestOnOffMachine(t *testing.T) {
 	}
 
 	if currentState := onOffMachine.Current; currentState != OffState {
-		t.Errorf(
+		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			currentState,
 			OffState,
@@ -43,20 +43,20 @@ func TestOnOffMachine(t *testing.T) {
 
 	nextState, err := onOffMachine.Send(OnEvent)
 	if err != nil {
-		t.Errorf(
+		t.Fatalf(
 			"transition returned an unexpected error %v",
 			err,
 		)
 	}
 	if nextState != OnState {
-		t.Errorf(
+		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			nextState,
 			OnState,
 		)
 	}
 	if currentState := onOffMachine.Current; currentState != OnState {
-		t.Errorf(
+		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			currentState,
 			OnState,
@@ -69,16 +69,38 @@ func TestOnOffMachine(t *testing.T) {
 	}
 	var invalidTransitionErr *machine.ErrInvalidTransition
 	if !errors.As(err, &invalidTransitionErr) {
-		t.Errorf(
+		t.Fatalf(
 			"returned error is not of expected type %v",
 			err,
 		)
 	}
 	if invalidTransitionErr.Reason != machine.InvalidTransitionNotImplemented {
-		t.Errorf(
+		t.Fatalf(
 			"returned error is not caused by what we expected %v; expected %v",
 			invalidTransitionErr.Reason,
 			machine.InvalidTransitionNotImplemented,
+		)
+	}
+
+	nextState, err = onOffMachine.Send(OffEvent)
+	if err != nil {
+		t.Fatalf(
+			"transition returned an unexpected error %v",
+			err,
+		)
+	}
+	if nextState != OffState {
+		t.Fatalf(
+			"machine is in incorrect state %v; expected %v",
+			nextState,
+			OffState,
+		)
+	}
+	if currentState := onOffMachine.Current; currentState != OffState {
+		t.Fatalf(
+			"machine is in incorrect state %v; expected %v",
+			currentState,
+			OffState,
 		)
 	}
 }
