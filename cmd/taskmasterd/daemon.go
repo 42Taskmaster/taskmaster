@@ -19,6 +19,7 @@ func daemonRun() int {
 
 func daemonInit() {
 	if !isDaemon() {
+		logLogo()
 		log.Print("Starting daemon...")
 		if lockFileExists() {
 			log.Fatal("Daemon lockfile exists: is daemon already running ?")

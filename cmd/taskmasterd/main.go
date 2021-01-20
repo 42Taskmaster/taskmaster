@@ -8,8 +8,6 @@ import (
 func main() {
 	argsParse()
 
-	logLogo()
-
 	programsConfiguration, err := configParse()
 	if err != nil {
 		log.Fatalf("Error parsing configuration file: %s: %v\n", configPathArg, err)
