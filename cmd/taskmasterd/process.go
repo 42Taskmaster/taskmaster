@@ -1,12 +1,9 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os/exec"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/VisorRaptors/taskmaster/machine"
@@ -33,20 +30,12 @@ const (
 	ProcessEventFatal          machine.EventType = "fatal"
 )
 
-type NewProcessArgs struct {
-	ID             int
-	Program        *Program
-	Cmd            string
-	Env            []string
-	Stdout, Stderr io.Writer
-}
-
 type ProcessMachineContext struct {
 	Process *Process
 }
 
 type Process struct {
-	ID int
+	ID string
 
 	Program *Program
 
@@ -56,19 +45,10 @@ type Process struct {
 	DeadCh chan struct{}
 }
 
-func NewProcess(args NewProcessArgs) *Process {
-	commandChunks := strings.Split(args.Cmd, " ")
-
-	cmd := exec.Command(commandChunks[0], commandChunks[1:]...)
-	cmd.Env = args.Env
-	cmd.Stdin = nil
-	cmd.Stdout = args.Stdout
-	cmd.Stderr = args.Stderr
-
+func NewProcess(id string, program *Program) *Process {
 	process := &Process{
-		ID:      args.ID,
-		Program: args.Program,
-		Cmd:     cmd,
+		ID:      id,
+		Program: program,
 	}
 
 	process.Machine = machine.Machine{
@@ -139,45 +119,21 @@ func NewProcess(args NewProcessArgs) *Process {
 	return process
 }
 
-type ErrProcessAction struct {
-	ID  int
-	Err error
-}
+func (process *Process) Init() {
+	commandChunks := strings.Split(process.Program.Config.Cmd, " ")
 
-func (err *ErrProcessAction) Unwrap() error {
-	return err.Err
-}
+	cmd := exec.Command(commandChunks[0], commandChunks[1:]...)
+	cmd.Env = process.Program.Cache.Env
+	cmd.Stdin = nil
+	cmd.Stdout = process.Program.Cache.Stdout
+	cmd.Stderr = process.Program.Cache.Stderr
 
-func (err *ErrProcessAction) Error() string {
-	return "error in process id: " + strconv.Itoa(err.ID) + ": " + err.Err.Error()
-}
-
-type ErrProcessStarting struct {
-	Err error
-}
-
-func (err *ErrProcessStarting) Unwrap() error {
-	return err.Err
-}
-
-func (err *ErrProcessStarting) Error() string {
-	return "starting: " + err.Err.Error()
-}
-
-type ErrProcessStopping struct {
-	Err error
-}
-
-func (err *ErrProcessStopping) Unwrap() error {
-	return err.Err
-}
-
-func (err *ErrProcessStopping) Error() string {
-	return "stopping: " + err.Err.Error()
+	process.Cmd = cmd
 }
 
 func (process *Process) Start() error {
-	log.Println("before start is called")
+	process.Init()
+
 	if err := process.Cmd.Start(); err != nil {
 		return &ErrProcessStarting{
 			Err: err,
@@ -237,9 +193,10 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 	}
 
 	var (
-		stopsignal = processContext.Process.Program.Config.Stopsignal
-		stoptime   = processContext.Process.Program.Config.Stoptime
-		deadCh     = processContext.Process.DeadCh
+		stopsignal       = processContext.Process.Program.Config.Stopsignal
+		stoptime         = processContext.Process.Program.Config.Stoptime
+		deadCh           = processContext.Process.DeadCh
+		programTasksChan = processContext.Process.Program.ProgramManager.ProgramTaskChan
 	)
 
 	err := processContext.Process.Stop(stopsignal)
@@ -252,15 +209,52 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 
 	go func() {
 		select {
-		case <-deadCh:
-			log.Println("Dead by channel")
-			return
 		case <-time.After(time.Duration(stoptime) * time.Second):
-			log.Println("timeout")
-			processContext.Process.Cmd.Process.Signal(syscall.SIGKILL)
-			return
+			programTasksChan <- ProgramTask{
+				Action:    ProgramTaskActionKill,
+				Program:   processContext.Process.Program,
+				ProcessID: processContext.Process.ID,
+			}
+		case <-deadCh:
 		}
 	}()
 
 	return machine.NoopEvent, nil
+}
+
+type ErrProcessAction struct {
+	ID  string
+	Err error
+}
+
+func (err *ErrProcessAction) Unwrap() error {
+	return err.Err
+}
+
+func (err *ErrProcessAction) Error() string {
+	return "error in process id: " + err.ID + ": " + err.Err.Error()
+}
+
+type ErrProcessStarting struct {
+	Err error
+}
+
+func (err *ErrProcessStarting) Unwrap() error {
+	return err.Err
+}
+
+func (err *ErrProcessStarting) Error() string {
+	return "starting: " + err.Err.Error()
+}
+
+type ErrProcessStopping struct {
+	Err error
+}
+
+func (err *ErrProcessStopping) Unwrap() error {
+	return err.Err
+}
+
+func (err *ErrProcessStopping) Error() string {
+	return "stopping: " + err.Err.Error()
 }

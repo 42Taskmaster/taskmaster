@@ -6,9 +6,11 @@ const (
 	ProgramTaskActionStart   ProgramTaskAction = "START"
 	ProgramTaskActionStop    ProgramTaskAction = "STOP"
 	ProgramTaskActionRestart ProgramTaskAction = "RESTART"
+	ProgramTaskActionKill    ProgramTaskAction = "KILL"
 )
 
 type ProgramTask struct {
-	Action  ProgramTaskAction
-	Program *Program
+	Action    ProgramTaskAction
+	Program   *Program
+	ProcessID string
 }

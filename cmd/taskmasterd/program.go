@@ -6,14 +6,22 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"syscall"
 )
 
 type Programs map[string]*Program
 
 type Program struct {
-	Processes []*Process
-	Config    ProgramConfig
+	ProgramManager *ProgramManager
+	Processes      map[string]*Process
+	Config         ProgramConfig
+	Cache          ProgramCache
+}
+
+type ProgramCache struct {
+	Env            []string
+	Stdout, Stderr io.Writer
 }
 
 type ProgramState string
@@ -60,6 +68,14 @@ func (program *Program) GetState() string {
 	return "OK"
 }
 
+func (program *Program) GetProcessById(id string) *Process {
+	process, ok := program.Processes[id]
+	if !ok {
+		return nil
+	}
+	return process
+}
+
 func (program *Program) ExitedProcesses() {
 	log.Printf("Program %s checking for exited processes received", program.Config.Name)
 	for _, process := range program.Processes {
@@ -71,7 +87,7 @@ func (program *Program) ExitedProcesses() {
 	}
 }
 
-func programParse(config ProgramConfig) *Program {
+func programParse(programManager *ProgramManager, config ProgramConfig) *Program {
 	var stdoutWriter, stderrWriter io.Writer
 
 	if len(config.Stdout) > 0 {
@@ -96,33 +112,29 @@ func programParse(config ProgramConfig) *Program {
 		env = append(env, concatenatedKeyValue)
 	}
 
-	program := &Program{Config: config}
-
-	processes := []*Process{}
+	program := &Program{
+		ProgramManager: programManager,
+		Processes:      make(map[string]*Process),
+		Config:         config,
+		Cache: ProgramCache{
+			Env:    env,
+			Stdout: stdoutWriter,
+			Stderr: stderrWriter,
+		}}
 
 	for index := 1; index <= config.Numprocs; index++ {
-		process := NewProcess(NewProcessArgs{
-			ID:      index,
-			Program: program,
-			Cmd:     config.Cmd,
-			Env:     env,
-			Stdout:  stdoutWriter,
-			Stderr:  stderrWriter,
-		})
-
-		processes = append(processes, process)
+		id := strconv.Itoa(index)
+		program.Processes[id] = NewProcess(id, program)
 	}
-
-	program.Processes = processes
 
 	return program
 }
 
-func programsParse(config ProgramsConfiguration) Programs {
+func programsParse(programManager *ProgramManager, config ProgramsConfiguration) Programs {
 	parsedPrograms := make(Programs)
 
 	for name, program := range config {
-		parsedPrograms[name] = programParse(program)
+		parsedPrograms[name] = programParse(programManager, program)
 	}
 
 	return parsedPrograms

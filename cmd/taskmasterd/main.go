@@ -26,7 +26,7 @@ func main() {
 	defer lockFileRemove()
 
 	programManager := NewProgramManager()
-	programManager.Programs = programsParse(programsConfiguration)
+	programManager.Programs = programsParse(programManager, programsConfiguration)
 
 	taskmasterd := NewTaskmasterd(programManager)
 	taskmasterd.SignalsSetup()

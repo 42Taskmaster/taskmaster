@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"syscall"
 )
 
 type ProgramManager struct {
@@ -26,6 +27,11 @@ func (programManager *ProgramManager) Init() {
 				programTask.Program.Stop()
 			} else if programTask.Action == ProgramTaskActionRestart {
 				programTask.Program.Restart()
+			} else if programTask.Action == ProgramTaskActionKill && programTask.ProcessID != "" {
+				process := programTask.Program.GetProcessById(programTask.ProcessID)
+				if process != nil {
+					process.Cmd.Process.Signal(syscall.SIGKILL)
+				}
 			}
 		}
 	}()
