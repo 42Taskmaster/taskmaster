@@ -110,16 +110,39 @@ type StateNodes map[StateType]StateNode
 type Machine struct {
 	Context Context
 
-	Previous StateType
-	Current  StateType
+	Initial StateType
+
+	previous StateType
+	current  StateType
 
 	StateNodes StateNodes
 
 	lock sync.Mutex
 }
 
+// Init initializes the machine.
+func (machine *Machine) Init() {
+	machine.current = machine.Initial
+}
+
+// Previous returns previous state.
+func (machine *Machine) Previous() StateType {
+	machine.lock.Lock()
+	defer machine.lock.Unlock()
+
+	return machine.previous
+}
+
+// Current returns current state.
+func (machine *Machine) Current() StateType {
+	machine.lock.Lock()
+	defer machine.lock.Unlock()
+
+	return machine.current
+}
+
 func (machine *Machine) getNextState(event EventType) (StateType, error) {
-	currentState, ok := machine.StateNodes[machine.Current]
+	currentState, ok := machine.StateNodes[machine.current]
 	if !ok {
 		return NoopState, &ErrInvalidTransition{
 			Err: ErrInvalidTransitionInvalidCurrentState,
@@ -188,8 +211,8 @@ func (machine *Machine) Send(event EventType) (StateType, error) {
 			}
 		}
 
-		machine.Previous = machine.Current
-		machine.Current = nextState
+		machine.previous = machine.current
+		machine.current = nextState
 
 		if len(nextStateNode.Actions) == 0 {
 			return nextState, nil

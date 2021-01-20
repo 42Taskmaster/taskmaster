@@ -17,7 +17,7 @@ func TestOnOffMachine(t *testing.T) {
 	)
 
 	onOffMachine := machine.Machine{
-		Current: OffState,
+		Initial: OffState,
 
 		StateNodes: machine.StateNodes{
 			OnState: machine.StateNode{
@@ -32,8 +32,9 @@ func TestOnOffMachine(t *testing.T) {
 			},
 		},
 	}
+	onOffMachine.Init()
 
-	if currentState := onOffMachine.Current; currentState != OffState {
+	if currentState := onOffMachine.Current(); currentState != OffState {
 		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			currentState,
@@ -55,7 +56,7 @@ func TestOnOffMachine(t *testing.T) {
 			OnState,
 		)
 	}
-	if currentState := onOffMachine.Current; currentState != OnState {
+	if currentState := onOffMachine.Current(); currentState != OnState {
 		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			currentState,
@@ -89,7 +90,7 @@ func TestOnOffMachine(t *testing.T) {
 			OffState,
 		)
 	}
-	if currentState := onOffMachine.Current; currentState != OffState {
+	if currentState := onOffMachine.Current(); currentState != OffState {
 		t.Fatalf(
 			"machine is in incorrect state %v; expected %v",
 			currentState,
