@@ -44,7 +44,7 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 		programName := r.Form.Get("program_name")
 		err = programManager.StartProgramByName(programName)
 		if err != nil {
-			fmt.Fprintf(w, "error: ", err)
+			fmt.Fprintf(w, "error: %v", err)
 		} else {
 			fmt.Fprintf(w, "program '%s' started", programName)
 		}
@@ -63,7 +63,7 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 		programName := r.Form.Get("program_name")
 		err = programManager.StopProgramByName(programName)
 		if err != nil {
-			fmt.Fprintf(w, "error: ", err)
+			fmt.Fprintf(w, "error: %v", err)
 		} else {
 			fmt.Fprintf(w, "program '%s' stopped", programName)
 		}
