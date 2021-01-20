@@ -19,17 +19,17 @@ func main() {
 
 	// Daemon only code
 
-	logSetup()
 	logLogo()
 	log.Printf("Started as daemon with PID %d", os.Getpid())
 
 	lockFileCreate()
 	defer lockFileRemove()
 
-	signalsSetup()
-
 	programManager := NewProgramManager()
-	programManager.programs = programsParse(programsConfiguration)
+	programManager.Programs = programsParse(programsConfiguration)
+
+	taskmasterd := NewTaskmasterd(programManager)
+	taskmasterd.SignalsSetup()
 
 	httpSetup(programManager)
 	httpListenAndServe()

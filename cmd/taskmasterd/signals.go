@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"os/signal"
 	"syscall"
 )
 
@@ -63,32 +62,4 @@ func (signal StopSignal) ToOsSignal() os.Signal {
 		log.Panicf("unexpected signal: %s\n", signal)
 		return nil
 	}
-}
-
-func signalsExit(sigs chan os.Signal) {
-	<-sigs
-	lockFileRemove()
-	os.Exit(0)
-}
-
-func signalsExitSetup() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGQUIT)
-	go signalsExit(sigs)
-}
-
-func signalsChld(sigs chan os.Signal) {
-	<-sigs
-	// SIGCHLD received
-}
-
-func signalsChldSetup() {
-	sigs := make(chan os.Signal)
-	signal.Notify(sigs, syscall.SIGCHLD)
-	go signalsChld(sigs)
-}
-
-func signalsSetup() {
-	signalsExitSetup()
-	signalsChldSetup()
 }

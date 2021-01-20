@@ -60,6 +60,17 @@ func (program *Program) GetState() string {
 	return "OK"
 }
 
+func (program *Program) ExitedProcesses() {
+	log.Printf("Program %s checking for exited processes received", program.Config.Name)
+	for _, process := range program.Processes {
+		log.Printf("process state = %+v\n", process.Cmd.ProcessState)
+		if process.Cmd.ProcessState != nil {
+			log.Printf("Process ID %v has ProcessState, Exit() = %v, ExitCode = %v", process.ID, process.Cmd.ProcessState.Exited(), process.Cmd.ProcessState.ExitCode())
+			//process.Machine.Send(ProcessEventStopped)
+		}
+	}
+}
+
 func programParse(config ProgramConfig) *Program {
 	var stdoutWriter, stderrWriter io.Writer
 
@@ -85,25 +96,26 @@ func programParse(config ProgramConfig) *Program {
 		env = append(env, concatenatedKeyValue)
 	}
 
+	program := &Program{Config: config}
+
 	processes := []*Process{}
 
 	for index := 0; index < config.Numprocs; index++ {
 		process := NewProcess(NewProcessArgs{
-			ID:         index,
-			Cmd:        config.Cmd,
-			Env:        env,
-			Stdout:     stdoutWriter,
-			Stderr:     stderrWriter,
-			StopSignal: config.Stopsignal,
+			ID:      index,
+			Program: program,
+			Cmd:     config.Cmd,
+			Env:     env,
+			Stdout:  stdoutWriter,
+			Stderr:  stderrWriter,
 		})
 
 		processes = append(processes, process)
 	}
 
-	return &Program{
-		Processes: processes,
-		Config:    config,
-	}
+	program.Processes = processes
+
+	return program
 }
 
 func programsParse(config ProgramsConfiguration) Programs {

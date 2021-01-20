@@ -1,6 +1,6 @@
 programs:
   nginx:
-    cmd: "sleep 30"
+    cmd: "./infinite"
     numprocs: 1
     umask: 022
     workingdir: /tmp
@@ -11,7 +11,7 @@ programs:
       - 2
     startretries: 3
     starttime: 5
-    stopsignal: TERM
+    stopsignal: QUIT
     stoptime: 10
     stdout: /tmp/nginx.stdout
     stderr: /tmp/nginx.stderr

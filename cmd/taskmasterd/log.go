@@ -16,11 +16,11 @@ func logLogo() {
 	log.Print("  \\_/\\__,_|___/_|\\_\\_| |_| |_|\\__,_|___/\\__\\___|_| ")
 }
 
-func logSetup() {
+func logGetFile() *os.File {
 	logFile, err := os.OpenFile(logPathArg, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Print(logPathArg)
 		log.Fatal(logPathArg, err)
 	}
-	log.SetOutput(logFile)
+	return logFile
 }

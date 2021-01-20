@@ -23,11 +23,11 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		fmt.Fprintf(w, "%d programs\n", len(programManager.programs))
-		for _, program := range programManager.programs {
-			fmt.Fprintf(w, "%s: %s\n", program.Config.Name, program.GetState())
-			for _, process := range program.Processes {
-				fmt.Fprintf(w, "  %v: %s\n", process.ID, process.Machine.Current)
+		programsStatuses := programManager.GetProgramsStatus()
+		for name, processMap := range programsStatuses {
+			fmt.Fprintf(w, "%s: %s\n", name, "OK")
+			for id, stateType := range processMap {
+				fmt.Fprintf(w, "  %v: %s\n", id, stateType)
 			}
 		}
 	default:
@@ -43,11 +43,10 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 			log.Print(err)
 		}
 		programName := r.Form.Get("program_name")
-		program := programManager.GetProgramByName((programName))
-		if program == nil {
-			fmt.Fprintf(w, "program '%s' not found", programName)
+		err = programManager.StartProgramByName(programName)
+		if err != nil {
+			fmt.Fprintf(w, "error: ", err)
 		} else {
-			program.Start()
 			fmt.Fprintf(w, "program '%s' started", programName)
 		}
 	default:
@@ -63,11 +62,10 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 			log.Print(err)
 		}
 		programName := r.Form.Get("program_name")
-		program := programManager.GetProgramByName((programName))
-		if program == nil {
-			fmt.Fprintf(w, "program '%s' not found", programName)
+		err = programManager.StopProgramByName(programName)
+		if err != nil {
+			fmt.Fprintf(w, "error: ", err)
 		} else {
-			program.Stop()
 			fmt.Fprintf(w, "program '%s' stopped", programName)
 		}
 	default:

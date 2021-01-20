@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/VisorRaptors/taskmaster/machine"
 )
@@ -33,10 +35,10 @@ const (
 
 type NewProcessArgs struct {
 	ID             int
+	Program        *Program
 	Cmd            string
 	Env            []string
 	Stdout, Stderr io.Writer
-	StopSignal     StopSignal
 }
 
 type ProcessMachineContext struct {
@@ -46,10 +48,12 @@ type ProcessMachineContext struct {
 type Process struct {
 	ID int
 
-	Cmd     *exec.Cmd
-	Machine *machine.Machine
+	Program *Program
 
-	StopSignal StopSignal
+	Cmd     *exec.Cmd
+	Machine machine.Machine
+
+	DeadCh chan struct{}
 }
 
 func NewProcess(args NewProcessArgs) *Process {
@@ -62,17 +66,17 @@ func NewProcess(args NewProcessArgs) *Process {
 	cmd.Stderr = args.Stderr
 
 	process := &Process{
-		ID:         args.ID,
-		Cmd:        cmd,
-		StopSignal: args.StopSignal,
+		ID:      args.ID,
+		Program: args.Program,
+		Cmd:     cmd,
 	}
 
-	machine := &machine.Machine{
+	process.Machine = machine.Machine{
 		Context: ProcessMachineContext{
 			Process: process,
 		},
 
-		Current: ProcessStateStopped,
+		Initial: ProcessStateStopped,
 
 		StateNodes: machine.StateNodes{
 			ProcessStateStopped: machine.StateNode{
@@ -130,8 +134,7 @@ func NewProcess(args NewProcessArgs) *Process {
 			},
 		},
 	}
-
-	process.Machine = machine
+	process.Machine.Init()
 
 	return process
 }
@@ -180,6 +183,21 @@ func (process *Process) Start() error {
 			Err: err,
 		}
 	}
+
+	go func() {
+		process.Cmd.Wait()
+
+		event := ProcessEventStopped
+		if process.Cmd.ProcessState.Exited() {
+			event = ProcessEventExit
+		}
+
+		_, err := process.Machine.Send(event)
+		if err != nil {
+			log.Panicf("expected no error to be returned but got %v\n", err)
+		}
+	}()
+
 	return nil
 }
 
@@ -190,7 +208,6 @@ func (process *Process) Stop(signal StopSignal) error {
 			Err: err,
 		}
 	}
-
 	return nil
 }
 
@@ -209,15 +226,41 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 }
 
 func ProcessStopAction(context machine.Context) (machine.EventType, error) {
-	processContext := context.(ProcessMachineContext)
+	var processContext = context.(ProcessMachineContext)
 
-	err := processContext.Process.Stop(processContext.Process.StopSignal)
+	log.Printf("processContext = %#v\n", processContext)
+	if processContext.Process == nil {
+		log.Panic("processContext.Process is nil")
+	}
+	if processContext.Process.Program == nil {
+		log.Panic("processContext.Process.Program is nil")
+	}
+
+	var (
+		stopsignal = processContext.Process.Program.Config.Stopsignal
+		stoptime   = processContext.Process.Program.Config.Stoptime
+		deadCh     = processContext.Process.DeadCh
+	)
+
+	err := processContext.Process.Stop(stopsignal)
 	if err != nil {
 		return machine.NoopEvent, &ErrProcessAction{
 			ID:  processContext.Process.ID,
 			Err: err,
 		}
 	}
+
+	go func() {
+		select {
+		case <-deadCh:
+			log.Println("Dead by channel")
+			return
+		case <-time.After(time.Duration(stoptime) * time.Second):
+			log.Println("timeout")
+			processContext.Process.Cmd.Process.Signal(syscall.SIGKILL)
+			return
+		}
+	}()
 
 	return machine.NoopEvent, nil
 }
