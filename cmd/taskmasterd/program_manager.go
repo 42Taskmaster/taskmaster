@@ -87,9 +87,3 @@ func (programManager *ProgramManager) StopProgramByName(name string) error {
 	}
 	return nil
 }
-
-func (programManager *ProgramManager) ExitedProgramsProcesses() {
-	for _, program := range programManager.Programs {
-		program.ExitedProcesses()
-	}
-}

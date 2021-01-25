@@ -76,17 +76,6 @@ func (program *Program) GetProcessById(id string) *Process {
 	return process
 }
 
-func (program *Program) ExitedProcesses() {
-	log.Printf("Program %s checking for exited processes received", program.Config.Name)
-	for _, process := range program.Processes {
-		log.Printf("process state = %+v\n", process.Cmd.ProcessState)
-		if process.Cmd.ProcessState != nil {
-			log.Printf("Process ID %v has ProcessState, Exit() = %v, ExitCode = %v", process.ID, process.Cmd.ProcessState.Exited(), process.Cmd.ProcessState.ExitCode())
-			//process.Machine.Send(ProcessEventStopped)
-		}
-	}
-}
-
 func programParse(programManager *ProgramManager, config ProgramConfig) *Program {
 	var stdoutWriter, stderrWriter io.Writer
 
