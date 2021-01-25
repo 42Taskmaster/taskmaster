@@ -15,7 +15,7 @@ jobs:
       with:
         node-version: '14'
     - name: Compile tests files
-      run: make test
+      run: make tests
     - name: Launch tests
       working-directory: tests
       run: npm test
