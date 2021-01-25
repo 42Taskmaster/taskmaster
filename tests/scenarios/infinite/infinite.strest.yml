@@ -80,6 +80,6 @@ requests:
       - jsonpath: content.result[0].program_name
         expect: infinite
       - jsonpath: content.result[0].program_state
-        expect: STOPPED
+        expect: STOPPE
       - jsonpath: content.result[0].processes[0].state
-        expect: STOPPED
+        expect: STOPPE
