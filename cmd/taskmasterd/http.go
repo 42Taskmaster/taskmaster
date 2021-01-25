@@ -23,7 +23,7 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/":              httpNotFound,
 }
 
-type HttpJsonResponse struct {
+type HttpJSONResponse struct {
 	Error  string        `json:"error"`
 	Result []interface{} `json:"result"`
 }
@@ -42,7 +42,7 @@ type HttpProcessState struct {
 func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		httpJsonResponse := HttpJsonResponse{}
+		httpJSONResponse := HttpJSONResponse{}
 
 		for _, program := range programManager.GetSortedPrograms() {
 			httpProgramStatus := HttpProgramState{
@@ -56,9 +56,9 @@ func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r
 				}
 				httpProgramStatus.Processes = append(httpProgramStatus.Processes, httpProcessState)
 			}
-			httpJsonResponse.Result = append(httpJsonResponse.Result, httpProgramStatus)
+			httpJSONResponse.Result = append(httpJSONResponse.Result, httpProgramStatus)
 		}
-		json, err := json.Marshal(httpJsonResponse)
+		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -71,23 +71,17 @@ func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r
 func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		httpJsonResponse := HttpJsonResponse{}
+		httpJSONResponse := HttpJSONResponse{}
 		err := r.ParseForm()
 		if err != nil {
-			httpJsonResponse.Error = err.Error()
-			json, err := json.Marshal(httpJsonResponse)
-			if err != nil {
-				log.Panic(err)
-			}
-			w.Write(json)
-			return
+			log.Panic(err)
 		}
 		programName := r.Form.Get("program_name")
 		err = programManager.StartProgramByName(programName)
 		if err != nil {
-			httpJsonResponse.Error = err.Error()
+			httpJSONResponse.Error = err.Error()
 		}
-		json, err := json.Marshal(httpJsonResponse)
+		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -100,17 +94,21 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		httpJSONResponse := HttpJSONResponse{}
 		err := r.ParseForm()
 		if err != nil {
-			log.Print(err)
+			log.Panic(err)
 		}
 		programName := r.Form.Get("program_name")
 		err = programManager.StopProgramByName(programName)
 		if err != nil {
-			fmt.Fprintf(w, "error: %v", err)
-		} else {
-			fmt.Fprintf(w, "program '%s' stopped", programName)
+			httpJSONResponse.Error = err.Error()
 		}
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -119,18 +117,21 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		httpJSONResponse := HttpJSONResponse{}
 		err := r.ParseForm()
 		if err != nil {
 			log.Print(err)
 		}
 		programName := r.Form.Get("program_name")
-		program := programManager.GetProgramByName((programName))
-		if program == nil {
-			fmt.Fprintf(w, "program '%s' not found", programName)
-		} else {
-			program.Restart()
-			fmt.Fprintf(w, "program '%s' restarted", programName)
+		err = programManager.RestartProgramByName((programName))
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
 		}
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

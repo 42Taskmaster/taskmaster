@@ -90,6 +90,14 @@ func (programManager *ProgramManager) StopProgramByName(name string) error {
 	return nil
 }
 
+func (programManager *ProgramManager) RestartProgramByName(name string) error {
+	program := programManager.GetProgramByName(name)
+	if program == nil {
+		return fmt.Errorf("Program not found: \"%s\"", name)
+	}
+	return nil
+}
+
 func (programManager *ProgramManager) GetSortedPrograms() []*Program {
 	programsKeys := []string{}
 
