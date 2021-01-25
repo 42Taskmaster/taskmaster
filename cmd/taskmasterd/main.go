@@ -23,11 +23,13 @@ func main() {
 	lockFileCreate()
 	defer lockFileRemove()
 
-	programManager := NewProgramManager()
+	taskmasterd := NewTaskmasterd()
+	taskmasterd.SignalsSetup()
+
+	programManager := NewProgramManager(taskmasterd)
 	programManager.Programs = programsParse(programManager, programsConfiguration)
 
-	taskmasterd := NewTaskmasterd(programManager)
-	taskmasterd.SignalsSetup()
+	taskmasterd.ProgramManager = programManager
 
 	httpSetup(programManager)
 	httpListenAndServe()

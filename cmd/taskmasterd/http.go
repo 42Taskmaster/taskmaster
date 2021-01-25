@@ -163,8 +163,8 @@ func httpNotFound(programManager *ProgramManager, w http.ResponseWriter, r *http
 
 func httpHandleEndpoint(programManager *ProgramManager, callback HttpEndpointFunc) HttpHandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		callback(programManager, w, r)
 		log.Println(r.RemoteAddr, r.Method, r.RequestURI)
+		callback(programManager, w, r)
 	}
 }
 

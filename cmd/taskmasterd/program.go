@@ -41,7 +41,7 @@ const (
 )
 
 func (program *Program) Start() {
-	log.Println("start is called")
+	log.Printf("Starting program '%s'", program.Config.Name)
 	for _, process := range program.Processes {
 		_, err := process.Machine.Send(ProcessEventStart)
 		if err != nil {
@@ -54,6 +54,7 @@ func (program *Program) Start() {
 }
 
 func (program *Program) Stop() {
+	log.Printf("Stopping program '%s'", program.Config.Name)
 	for _, process := range program.Processes {
 		_, err := process.Machine.Send(ProcessEventStop)
 		if err != nil {
@@ -63,6 +64,7 @@ func (program *Program) Stop() {
 }
 
 func (program *Program) Restart() {
+	log.Printf("Restarting program '%s'", program.Config.Name)
 	program.Stop()
 	program.Start()
 }
@@ -193,11 +195,15 @@ func programParse(programManager *ProgramManager, config ProgramConfig) *Program
 	return program
 }
 
-func programsParse(programManager *ProgramManager, config ProgramsConfiguration) Programs {
+func programsParse(programManager *ProgramManager, configs ProgramsConfiguration) Programs {
 	parsedPrograms := make(Programs)
 
-	for name, program := range config {
-		parsedPrograms[name] = programParse(programManager, program)
+	for name, config := range configs {
+		program := programParse(programManager, config)
+		parsedPrograms[name] = program
+		if program.Config.Autostart {
+			program.Start()
+		}
 	}
 
 	return parsedPrograms

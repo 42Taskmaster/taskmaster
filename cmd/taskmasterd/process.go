@@ -132,6 +132,7 @@ func (process *Process) Init() {
 	cmd.Stdin = nil
 	cmd.Stdout = process.Program.Cache.Stdout
 	cmd.Stderr = process.Program.Cache.Stderr
+	cmd.Dir = process.Program.Config.Workingdir
 
 	process.Cmd = cmd
 }
@@ -139,11 +140,13 @@ func (process *Process) Init() {
 func (process *Process) Start() error {
 	process.Init()
 
+	process.Program.ProgramManager.Taskmasterd.SetUmask(process.Program.Config.Umask)
 	if err := process.Cmd.Start(); err != nil {
 		return &ErrProcessStarting{
 			Err: err,
 		}
 	}
+	process.Program.ProgramManager.Taskmasterd.ResetUmask()
 
 	hasExited := make(chan struct{})
 
@@ -241,8 +244,27 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 }
 
 func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
+	log.Print("backoff action")
+	processContext := context.(ProcessMachineContext)
+	process := processContext.Process
 
-	return machine.NoopEvent, nil
+	switch process.Program.Config.Autorestart {
+	case AutorestartOn:
+		return ProcessEventStart, nil
+	case AutorestartUnexpected:
+		exitCode := process.Cmd.ProcessState.ExitCode()
+		log.Print("unexpected ", exitCode)
+		for _, allowedExitCode := range process.Program.Config.Exitcodes {
+			if exitCode == allowedExitCode {
+				log.Print("allowed")
+				return machine.NoopEvent, nil
+			}
+		}
+		log.Print("not allowed")
+		return ProcessEventStart, nil
+	default:
+		return machine.NoopEvent, nil
+	}
 }
 
 type ErrProcessAction struct {
