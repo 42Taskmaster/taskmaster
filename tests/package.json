@@ -4,12 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "artillery"
+    "test": "./launch-tests.sh"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "artillery": "^1.6.1"
+    "@strest/cli": "^2.5.1"
   }
 }
