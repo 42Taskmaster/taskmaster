@@ -6,16 +6,11 @@ const (
 	ProgramTaskActionStart   ProgramTaskAction = "START"
 	ProgramTaskActionStop    ProgramTaskAction = "STOP"
 	ProgramTaskActionRestart ProgramTaskAction = "RESTART"
+	ProgramTaskActionKill    ProgramTaskAction = "KILL"
 )
 
 type ProgramTask struct {
-	action  ProgramTaskAction
-	program *Program
-}
-
-func NewProgramTask(program *Program, programTaskAction ProgramTaskAction) ProgramTask {
-	return ProgramTask{
-		action:  programTaskAction,
-		program: program,
-	}
+	Action    ProgramTaskAction
+	Program   *Program
+	ProcessID string
 }

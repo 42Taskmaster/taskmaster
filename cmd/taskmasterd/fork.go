@@ -7,11 +7,13 @@ import (
 )
 
 func fork() (int, error) {
+	logFile := logGetFile()
+
 	cmd := exec.Command(os.Args[0], "-d")
 	cmd.Env = os.Environ()
 	cmd.Stdin = nil
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 	cmd.ExtraFiles = nil
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// Setsid is used to detach the process from the parent (normally a shell)

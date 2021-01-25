@@ -1,10 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"syscall"
+)
 
 type ProgramManager struct {
-	programs        Programs
-	programTaskChan chan ProgramTask
+	Programs        Programs
+	ProgramTaskChan chan ProgramTask
 }
 
 func NewProgramManager() *ProgramManager {
@@ -14,23 +17,28 @@ func NewProgramManager() *ProgramManager {
 }
 
 func (programManager *ProgramManager) Init() {
-	programTaskChan := make(chan ProgramTask)
+	programManager.ProgramTaskChan = make(chan ProgramTask)
 
 	go func() {
-		for programTask := range programTaskChan {
-			if programTask.action == ProgramTaskActionStart {
-				programTask.program.Start()
-			} else if programTask.action == ProgramTaskActionStop {
-				programTask.program.Stop()
-			} else if programTask.action == ProgramTaskActionRestart {
-				programTask.program.Restart()
+		for programTask := range programManager.ProgramTaskChan {
+			if programTask.Action == ProgramTaskActionStart {
+				programTask.Program.Start()
+			} else if programTask.Action == ProgramTaskActionStop {
+				programTask.Program.Stop()
+			} else if programTask.Action == ProgramTaskActionRestart {
+				programTask.Program.Restart()
+			} else if programTask.Action == ProgramTaskActionKill && programTask.ProcessID != "" {
+				process := programTask.Program.GetProcessById(programTask.ProcessID)
+				if process != nil {
+					process.Cmd.Process.Signal(syscall.SIGKILL)
+				}
 			}
 		}
 	}()
 }
 
 func (programManager *ProgramManager) GetProgramByName(name string) *Program {
-	for _, program := range programManager.programs {
+	for _, program := range programManager.Programs {
 		if program.Config.Name == name {
 			return program
 		}
@@ -38,15 +46,21 @@ func (programManager *ProgramManager) GetProgramByName(name string) *Program {
 	return nil
 }
 
-func (programManager *ProgramManager) StartAllPrograms() {
-	for _, program := range programManager.programs {
-		programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
+func (programManager *ProgramManager) StartPrograms() {
+	for _, program := range programManager.Programs {
+		programManager.ProgramTaskChan <- ProgramTask{
+			Action:  ProgramTaskActionStart,
+			Program: program,
+		}
 	}
 }
 
-func (programManager *ProgramManager) StopAllPrograms() {
-	for _, program := range programManager.programs {
-		programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStop)
+func (programManager *ProgramManager) StopPrograms() {
+	for _, program := range programManager.Programs {
+		programManager.ProgramTaskChan <- ProgramTask{
+			Action:  ProgramTaskActionStop,
+			Program: program,
+		}
 	}
 }
 
@@ -55,7 +69,10 @@ func (programManager *ProgramManager) StartProgramByName(name string) error {
 	if program == nil {
 		return fmt.Errorf("Program not found: \"%s\"", name)
 	}
-	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
+	programManager.ProgramTaskChan <- ProgramTask{
+		Action:  ProgramTaskActionStart,
+		Program: program,
+	}
 	return nil
 }
 
@@ -64,36 +81,9 @@ func (programManager *ProgramManager) StopProgramByName(name string) error {
 	if program == nil {
 		return fmt.Errorf("Program not found: \"%s\"", name)
 	}
-	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStop)
+	programManager.ProgramTaskChan <- ProgramTask{
+		Action:  ProgramTaskActionStop,
+		Program: program,
+	}
 	return nil
 }
-
-// func (programManager *ProgramManager) StartProgram(program *Program) {
-// 	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStart)
-// }
-
-// func (programManager *ProgramManager) StopProgram(program *Program) {
-// 	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionStop)
-// }
-
-// func (programManager *ProgramManager) RestartProgram(program *Program) {
-// 	programManager.programTaskChan <- NewProgramTask(program, ProgramTaskActionRestart)
-// }
-
-// func (programManager *ProgramManager) StartPrograms(programs *Programs) {
-// 	for _, program := range *programs {
-// 		programManager.StartProgram(program)
-// 	}
-// }
-
-// func (programManager *ProgramManager) StopPrograms(programs *Programs) {
-// 	for _, program := range *programs {
-// 		programManager.StopProgram(program)
-// 	}
-// }
-
-// func (programManager *ProgramManager) RestartPrograms(programs *Programs) {
-// 	for _, program := range *programs {
-// 		programManager.StartProgram(program)
-// 	}
-// }

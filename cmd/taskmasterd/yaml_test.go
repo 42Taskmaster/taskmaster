@@ -31,7 +31,7 @@ func TestCmdIsRequired(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -63,7 +63,7 @@ func TestNumprocsSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if numprocs := config["taskmaster"].Numprocs; numprocs != 1 {
 		t.Errorf(
@@ -84,7 +84,7 @@ func TestNumprocsIsNotOutsideLowerBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -116,7 +116,7 @@ func TestNumprocsIsNotOutsideUpperBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -149,7 +149,7 @@ func TestAutostartSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if autostart := config["taskmaster"].Autostart; autostart != true {
 		t.Errorf(
@@ -172,7 +172,7 @@ func TestAutorestartSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if autorestart := config["taskmaster"].Autorestart; autorestart != AutorestartUnexpected {
 		t.Errorf(
@@ -195,28 +195,28 @@ func TestAutorestartIsValidValue(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOn)
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = AutorestartOff
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOff)
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = AutorestartUnexpected
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartUnexpected)
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = "Invalid value"
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
 		if !(validationError.Field == "Programs[taskmaster].Autorestart" && validationError.Issue == ValidationIssueUnexpectedValue) {
 			t.Errorf(
@@ -247,7 +247,7 @@ func TestStarttimeSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if starttime := config["taskmaster"].Starttime; starttime != 1 {
 		t.Errorf(
@@ -271,7 +271,7 @@ func TestStarttimeIsNotOutsideLowerBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -306,7 +306,7 @@ func TestStarttimeIsNotOutsideUpperBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -342,7 +342,7 @@ func TestStartretriesSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if startretries := config["taskmaster"].Startretries; startretries != 3 {
 		t.Errorf(
@@ -367,7 +367,7 @@ func TestStartretriesIsNotOutsideLowerBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -403,7 +403,7 @@ func TestStartretriesIsNotOutsideUpperBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -440,7 +440,7 @@ func TestStopsignalSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if stopsignal := config["taskmaster"].Stopsignal; stopsignal != StopSignalTerm {
 		t.Errorf(
@@ -466,56 +466,56 @@ func TestStopsignalIsValidValue(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalTerm)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalHup
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalHup)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalInt
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalInt)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalQuit
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalQuit)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalKill
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalKill)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalUsr1
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalUsr1)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = StopSignalUsr2
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for Stopsignal = %s", StopSignalUsr2)
 	}
 
 	*programs.Programs["taskmaster"].Stopsignal = "Invalid value"
 
-	err, _ = programs.Validate()
+	_, err = programs.Validate()
 	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
 		if !(validationError.Field == "Programs[taskmaster].Stopsignal" && validationError.Issue == ValidationIssueUnexpectedValue) {
 			t.Errorf(
@@ -549,7 +549,7 @@ func TestStoptimeSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if stoptime := config["taskmaster"].Stoptime; stoptime != 10 {
 		t.Errorf(
@@ -576,7 +576,7 @@ func TestStoptimeIsNotOutsideLowerBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -614,7 +614,7 @@ func TestStoptimeIsNotOutsideUpperBounds(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
 	}
@@ -653,7 +653,7 @@ func TestStdoutSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if stdout := config["taskmaster"].Stdout; stdout != string(StdTypeAuto) {
 		t.Errorf(
@@ -681,7 +681,7 @@ func TestStderrSetToDefaultValue(t *testing.T) {
 		},
 	}
 
-	_, config := programs.Validate()
+	config, _ := programs.Validate()
 
 	if stderr := config["taskmaster"].Stderr; stderr != string(StdTypeAuto) {
 		t.Errorf(
@@ -716,7 +716,7 @@ func TestParsesValidFullConfiguration(t *testing.T) {
 		},
 	}
 
-	err, _ := programs.Validate()
+	_, err := programs.Validate()
 	if err != nil {
 		t.Errorf("Validation error on valid configuration: %v", err)
 	}

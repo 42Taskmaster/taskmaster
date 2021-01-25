@@ -23,9 +23,11 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		fmt.Fprintf(w, "%d programs\n", len(programManager.programs))
-		for _, program := range programManager.programs {
-			fmt.Fprintf(w, "%s: %s\n", program.Config.Name, program.State)
+		for name, program := range programManager.Programs {
+			fmt.Fprintf(w, "%s: %s\n", name, program.GetState())
+			for _, process := range program.Processes {
+				fmt.Fprintf(w, "  %v: %s\n", process.ID, process.Machine.Current())
+			}
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -39,7 +41,13 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 		if err != nil {
 			log.Print(err)
 		}
-		fmt.Fprint(w, r.Form.Get("programName"))
+		programName := r.Form.Get("program_name")
+		err = programManager.StartProgramByName(programName)
+		if err != nil {
+			fmt.Fprintf(w, "error: %v", err)
+		} else {
+			fmt.Fprintf(w, "program '%s' started", programName)
+		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -48,7 +56,17 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		fmt.Fprint(w, "stop")
+		err := r.ParseForm()
+		if err != nil {
+			log.Print(err)
+		}
+		programName := r.Form.Get("program_name")
+		err = programManager.StopProgramByName(programName)
+		if err != nil {
+			fmt.Fprintf(w, "error: %v", err)
+		} else {
+			fmt.Fprintf(w, "program '%s' stopped", programName)
+		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -57,7 +75,18 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		fmt.Fprint(w, "restart")
+		err := r.ParseForm()
+		if err != nil {
+			log.Print(err)
+		}
+		programName := r.Form.Get("program_name")
+		program := programManager.GetProgramByName((programName))
+		if program == nil {
+			fmt.Fprintf(w, "program '%s' not found", programName)
+		} else {
+			program.Restart()
+			fmt.Fprintf(w, "program '%s' restarted", programName)
+		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

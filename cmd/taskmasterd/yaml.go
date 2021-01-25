@@ -21,38 +21,6 @@ const (
 	StdTypeNone StdType = "NONE"
 )
 
-type StopSignal string
-
-const (
-	StopSignalTerm StopSignal = "TERM"
-	StopSignalHup  StopSignal = "HUP"
-	StopSignalInt  StopSignal = "INT"
-	StopSignalQuit StopSignal = "QUIT"
-	StopSignalKill StopSignal = "KILL"
-	StopSignalUsr1 StopSignal = "USR1"
-	StopSignalUsr2 StopSignal = "USR2"
-)
-
-var StopSignalAvailable = [...]StopSignal{
-	StopSignalTerm,
-	StopSignalHup,
-	StopSignalInt,
-	StopSignalQuit,
-	StopSignalKill,
-	StopSignalUsr1,
-	StopSignalUsr2,
-}
-
-func (signal StopSignal) Valid() bool {
-	for _, availableStopSignal := range StopSignalAvailable {
-		if availableStopSignal == signal {
-			return true
-		}
-	}
-
-	return false
-}
-
 type ValidationIssue string
 
 const (

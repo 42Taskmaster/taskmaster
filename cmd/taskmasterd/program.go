@@ -2,19 +2,26 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"log"
 	"os"
-	"os/exec"
+	"strconv"
 	"syscall"
 )
 
 type Programs map[string]*Program
 
 type Program struct {
-	Cmds   []*exec.Cmd
-	Config ProgramConfig
-	State  ProgramState
+	ProgramManager *ProgramManager
+	Processes      map[string]*Process
+	Config         ProgramConfig
+	Cache          ProgramCache
+}
+
+type ProgramCache struct {
+	Env            []string
+	Stdout, Stderr io.Writer
 }
 
 type ProgramState string
@@ -31,11 +38,25 @@ const (
 )
 
 func (program *Program) Start() {
-	program.State = ProgramStateStarting
+	log.Println("start is called")
+	for _, process := range program.Processes {
+		_, err := process.Machine.Send(ProcessEventStart)
+		if err != nil {
+			log.Println(err)
+		}
+		if errors.Is(err, syscall.ENOENT) {
+			log.Println("can not launch process as the command does not exist")
+		}
+	}
 }
 
 func (program *Program) Stop() {
-	program.State = ProgramStateStopping
+	for _, process := range program.Processes {
+		_, err := process.Machine.Send(ProcessEventStop)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (program *Program) Restart() {
@@ -43,55 +64,66 @@ func (program *Program) Restart() {
 	program.Start()
 }
 
-func programParse(config ProgramConfig) *Program {
-	var stdoutWrite, stderrWrite io.Writer
+func (program *Program) GetState() string {
+	return "OK"
+}
+
+func (program *Program) GetProcessById(id string) *Process {
+	process, ok := program.Processes[id]
+	if !ok {
+		return nil
+	}
+	return process
+}
+
+func programParse(programManager *ProgramManager, config ProgramConfig) *Program {
+	var stdoutWriter, stderrWriter io.Writer
 
 	if len(config.Stdout) > 0 {
 		stdoutFile, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
-		stdoutWrite = bufio.NewWriter(stdoutFile)
+		stdoutWriter = bufio.NewWriter(stdoutFile)
 	}
 	if len(config.Stderr) > 0 {
 		stderrFile, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
-		stderrWrite = bufio.NewWriter(stderrFile)
+		stderrWriter = bufio.NewWriter(stderrFile)
 	}
 
-	env := []string{}
+	env := os.Environ()
 	for name, value := range config.Env {
-		env = append(env, name+"="+value)
+		concatenatedKeyValue := name + "=" + value
+
+		env = append(env, concatenatedKeyValue)
 	}
 
-	cmds := []*exec.Cmd{}
+	program := &Program{
+		ProgramManager: programManager,
+		Processes:      make(map[string]*Process),
+		Config:         config,
+		Cache: ProgramCache{
+			Env:    env,
+			Stdout: stdoutWriter,
+			Stderr: stderrWriter,
+		}}
 
-	for i := 0; i < config.Numprocs; i++ {
-		cmd := exec.Command(config.Cmd)
-		cmd.Env = append(os.Environ(), env...)
-		cmd.Stdin = nil
-		cmd.Stdout = stdoutWrite
-		cmd.Stderr = stderrWrite
-		cmd.ExtraFiles = nil
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Setsid: true,
-		}
-		cmds = append(cmds, cmd)
+	for index := 1; index <= config.Numprocs; index++ {
+		id := strconv.Itoa(index)
+		program.Processes[id] = NewProcess(id, program)
 	}
 
-	return &Program{
-		Cmds:   cmds,
-		Config: config,
-	}
+	return program
 }
 
-func programsParse(config ProgramsConfiguration) Programs {
+func programsParse(programManager *ProgramManager, config ProgramsConfiguration) Programs {
 	parsedPrograms := make(Programs)
 
 	for name, program := range config {
-		parsedPrograms[name] = programParse(program)
+		parsedPrograms[name] = programParse(programManager, program)
 	}
 
 	return parsedPrograms
