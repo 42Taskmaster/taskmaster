@@ -109,8 +109,12 @@ func (program *ProgramYaml) NormalizedExitcodes() []int {
 	switch exitcodes := program.Exitcodes.(type) {
 	case int:
 		return []int{exitcodes}
-	case []int:
-		return exitcodes
+	case []interface{}:
+		var exitcodesSlice []int
+		for _, exitcode := range exitcodes {
+			exitcodesSlice = append(exitcodesSlice, exitcode.(int))
+		}
+		return exitcodesSlice
 	default:
 		return []int{0}
 	}

@@ -31,7 +31,8 @@ const (
 )
 
 type ProcessMachineContext struct {
-	Process *Process
+	Process    *Process
+	Starttries int
 }
 
 type Process struct {
@@ -52,8 +53,9 @@ func NewProcess(id string, program *Program) *Process {
 	}
 
 	process.Machine = machine.Machine{
-		Context: ProcessMachineContext{
-			Process: process,
+		Context: &ProcessMachineContext{
+			Process:    process,
+			Starttries: 0,
 		},
 
 		Initial: ProcessStateStopped,
@@ -90,6 +92,10 @@ func NewProcess(id string, program *Program) *Process {
 			},
 
 			ProcessStateRunning: machine.StateNode{
+				Actions: []machine.Action{
+					ProcessRunningAction,
+				},
+
 				On: machine.Events{
 					ProcessEventStop: ProcessStateStopping,
 					ProcessEventExit: ProcessStateExited,
@@ -142,6 +148,7 @@ func (process *Process) Start() error {
 
 	process.Program.ProgramManager.Taskmasterd.SetUmask(process.Program.Config.Umask)
 	if err := process.Cmd.Start(); err != nil {
+		process.Program.ProgramManager.Taskmasterd.ResetUmask()
 		return &ErrProcessStarting{
 			Err: err,
 		}
@@ -189,7 +196,7 @@ func (process *Process) Stop(signal StopSignal) error {
 }
 
 func ProcessStartAction(context machine.Context) (machine.EventType, error) {
-	processContext := context.(ProcessMachineContext)
+	processContext := context.(*ProcessMachineContext)
 
 	err := processContext.Process.Start()
 	if err != nil {
@@ -203,17 +210,9 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 }
 
 func ProcessStopAction(context machine.Context) (machine.EventType, error) {
-	var processContext = context.(ProcessMachineContext)
-
-	log.Printf("processContext = %#v\n", processContext)
-	if processContext.Process == nil {
-		log.Panic("processContext.Process is nil")
-	}
-	if processContext.Process.Program == nil {
-		log.Panic("processContext.Process.Program is nil")
-	}
 
 	var (
+		processContext   = context.(*ProcessMachineContext)
 		stopsignal       = processContext.Process.Program.Config.Stopsignal
 		stoptime         = processContext.Process.Program.Config.Stoptime
 		deadCh           = processContext.Process.DeadCh
@@ -244,27 +243,38 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 }
 
 func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
-	log.Print("backoff action")
-	processContext := context.(ProcessMachineContext)
+	processContext := context.(*ProcessMachineContext)
 	process := processContext.Process
 
 	switch process.Program.Config.Autorestart {
 	case AutorestartOn:
+		processContext.Starttries++
+		if processContext.Starttries == process.Program.Config.Startretries {
+			return ProcessEventFatal, nil
+		}
 		return ProcessEventStart, nil
 	case AutorestartUnexpected:
-		exitCode := process.Cmd.ProcessState.ExitCode()
-		log.Print("unexpected ", exitCode)
-		for _, allowedExitCode := range process.Program.Config.Exitcodes {
-			if exitCode == allowedExitCode {
-				log.Print("allowed")
+		exitcode := process.Cmd.ProcessState.ExitCode()
+		for _, allowedExitcode := range process.Program.Config.Exitcodes {
+			if exitcode == allowedExitcode {
 				return machine.NoopEvent, nil
 			}
 		}
-		log.Print("not allowed")
+		processContext.Starttries++
+		if processContext.Starttries == process.Program.Config.Startretries {
+			return ProcessEventFatal, nil
+		}
 		return ProcessEventStart, nil
 	default:
 		return machine.NoopEvent, nil
 	}
+}
+
+func ProcessRunningAction(context machine.Context) (machine.EventType, error) {
+	processContext := context.(*ProcessMachineContext)
+	processContext.Starttries = 0
+
+	return machine.NoopEvent, nil
 }
 
 type ErrProcessAction struct {
