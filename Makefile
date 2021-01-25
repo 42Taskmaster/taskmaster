@@ -1,10 +1,10 @@
-GO_FLAGS := -race
+GO_FLAGS = -race
 
-D_SRCS := $(wildcard cmd/taskmasterd/*.go)
-SH_SRCS := $(wildcard cmd/taskmastersh/*.go)
+D_SRCS = $(wildcard cmd/taskmasterd/*.go)
+SH_SRCS = $(wildcard cmd/taskmastersh/*.go)
 
-TESTS_BIN_SRCS := $(wildcard tests/binaries/*/main.go)
-TESTS_BIN := $(patsubst tests/binaries/%/main.go,tests/bin_%,$(TESTS_BIN_SRCS))
+TESTS_BIN_SRCS = $(wildcard tests/binaries/*/main.go)
+TESTS_BIN = $(patsubst tests/binaries/%/main.go,tests/bin_%,$(TESTS_BIN_SRCS))
 
 all: taskmasterd taskmastersh
 
@@ -14,7 +14,7 @@ taskmasterd: $(D_SRCS)
 taskmastersh: $(SH_SRCS)
 	go build $(GO_FLAGS) -o taskmastersh $(SH_SRCS)
 
-tests: $(TESTS_BIN)
+tests: taskmasterd $(TESTS_BIN)
 
 tests/bin_%: tests/binaries/%/main.go
 	go build $(GO_FLAGS) -o $@ $<
