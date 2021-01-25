@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"sort"
 	"syscall"
 )
 
@@ -86,4 +88,26 @@ func (programManager *ProgramManager) StopProgramByName(name string) error {
 		Program: program,
 	}
 	return nil
+}
+
+func (programManager *ProgramManager) GetSortedPrograms() []*Program {
+	programsKeys := []string{}
+
+	for key, _ := range programManager.Programs {
+		programsKeys = append(programsKeys, key)
+	}
+
+	sort.Strings(programsKeys)
+
+	programs := []*Program{}
+	for _, key := range programsKeys {
+		program := programManager.GetProgramByName(key)
+		if program != nil {
+			programs = append(programs, programManager.GetProgramByName(key))
+		} else {
+			log.Panic("GetSortedPrograms(): program is nil")
+		}
+	}
+
+	return programs
 }

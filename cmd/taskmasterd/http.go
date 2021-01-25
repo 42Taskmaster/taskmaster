@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/VisorRaptors/taskmaster/machine"
 )
 
 type HttpHandleFunc func(http.ResponseWriter, *http.Request)
@@ -20,15 +23,46 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/":              httpNotFound,
 }
 
+type HttpJsonResponse struct {
+	Error  string        `json:"error"`
+	Result []interface{} `json:"result"`
+}
+
+type HttpProgramState struct {
+	ProgramName  string             `json:"program_name"`
+	ProgramState machine.StateType  `json:"program_state"`
+	Processes    []HttpProcessState `json:"processes"`
+}
+
+type HttpProcessState struct {
+	Id    string            `json:"id"`
+	State machine.StateType `json:"state"`
+}
+
 func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		for name, program := range programManager.Programs {
-			fmt.Fprintf(w, "%s: %s\n", name, program.GetState())
-			for _, process := range program.Processes {
-				fmt.Fprintf(w, "  %v: %s\n", process.ID, process.Machine.Current())
+		httpJsonResponse := HttpJsonResponse{}
+
+		for _, program := range programManager.GetSortedPrograms() {
+			httpProgramStatus := HttpProgramState{
+				ProgramName:  program.Config.Name,
+				ProgramState: program.GetState(),
 			}
+			for _, process := range program.GetSortedProcesses() {
+				httpProcessState := HttpProcessState{
+					Id:    process.ID,
+					State: process.Machine.Current(),
+				}
+				httpProgramStatus.Processes = append(httpProgramStatus.Processes, httpProcessState)
+			}
+			httpJsonResponse.Result = append(httpJsonResponse.Result, httpProgramStatus)
 		}
+		json, err := json.Marshal(httpJsonResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -37,17 +71,27 @@ func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r
 func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
+		httpJsonResponse := HttpJsonResponse{}
 		err := r.ParseForm()
 		if err != nil {
-			log.Print(err)
+			httpJsonResponse.Error = err.Error()
+			json, err := json.Marshal(httpJsonResponse)
+			if err != nil {
+				log.Panic(err)
+			}
+			w.Write(json)
+			return
 		}
 		programName := r.Form.Get("program_name")
 		err = programManager.StartProgramByName(programName)
 		if err != nil {
-			fmt.Fprintf(w, "error: %v", err)
-		} else {
-			fmt.Fprintf(w, "program '%s' started", programName)
+			httpJsonResponse.Error = err.Error()
 		}
+		json, err := json.Marshal(httpJsonResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

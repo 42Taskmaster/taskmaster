@@ -71,13 +71,18 @@ func NewProcess(id string, program *Program) *Process {
 				},
 
 				On: machine.Events{
-					ProcessEventStarted:        ProcessStateRunning,
-					ProcessEventStop:           ProcessStateStopping,
-					ProcessEventExitedTooEarly: ProcessStateBackoff,
+					ProcessEventStarted: ProcessStateRunning,
+					ProcessEventStop:    ProcessStateStopping,
+					ProcessEventStopped: ProcessStateBackoff,
+					ProcessEventExit:    ProcessStateBackoff,
 				},
 			},
 
 			ProcessStateBackoff: machine.StateNode{
+				Actions: []machine.Action{
+					ProcessBackoffAction,
+				},
+
 				On: machine.Events{
 					ProcessEventStart: ProcessStateStarting,
 					ProcessEventFatal: ProcessStateFatal,
@@ -140,8 +145,21 @@ func (process *Process) Start() error {
 		}
 	}
 
+	hasExited := make(chan struct{})
+
+	go func() {
+		select {
+		case <-time.After(time.Duration(process.Program.Config.Starttime) * time.Second):
+			process.Machine.Send(ProcessEventStarted)
+		case <-hasExited:
+			return
+		}
+	}()
+
 	go func() {
 		process.Cmd.Wait()
+
+		close(hasExited)
 
 		event := ProcessEventStopped
 		if process.Cmd.ProcessState.Exited() {
@@ -150,7 +168,7 @@ func (process *Process) Start() error {
 
 		_, err := process.Machine.Send(event)
 		if err != nil {
-			log.Panicf("expected no error to be returned but got %v\n", err)
+			log.Print("expected no error to be returned but got %v\n", err)
 		}
 	}()
 
@@ -178,7 +196,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		}
 	}
 
-	return ProcessEventStarted, err
+	return machine.NoopEvent, err
 }
 
 func ProcessStopAction(context machine.Context) (machine.EventType, error) {
@@ -218,6 +236,11 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 		case <-deadCh:
 		}
 	}()
+
+	return machine.NoopEvent, nil
+}
+
+func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 
 	return machine.NoopEvent, nil
 }
