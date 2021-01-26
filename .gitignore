@@ -25,5 +25,4 @@ taskmastersh
 !cmd/taskmasterd
 !cmd/taskmastersh
 
-tests/binaries/*/*
-!tests/binaries/*/*.go
+AUTO

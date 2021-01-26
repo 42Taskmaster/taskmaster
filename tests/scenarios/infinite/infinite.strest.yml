@@ -1,0 +1,85 @@
+requests:
+  start-process:
+    request:
+      url: http://localhost:8080/start
+      method: POST
+      postData:
+        mimeType: application/x-www-form-urlencoded
+        params:
+          - name: program_name
+            value: infinite
+    validate:
+      - jsonpath: status
+        expect: 200
+  running-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: infinite
+      - jsonpath: content.result[0].program_state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes[0].state
+        expect: RUNNING
+  stop-immortal-with-sigterm:
+    request:
+      url: http://localhost:8080/stop
+      method: POST
+      postData:
+        mimeType: application/x-www-form-urlencoded
+        params:
+          - name: program_name
+            value: infinite
+    validate:
+      - jsonpath: status
+        expect: 200
+  stopping:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: infinite
+      - jsonpath: content.result[0].program_state
+        expect: STOPPING
+      - jsonpath: content.result[0].processes[0].state
+        expect: STOPPING
+  still-stopping-after-2-seconds:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 2000
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: infinite
+      - jsonpath: content.result[0].program_state
+        expect: STOPPING
+      - jsonpath: content.result[0].processes[0].state
+        expect: STOPPING
+  still-stopping-after-5-seconds:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 3000
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: infinite
+      - jsonpath: content.result[0].program_state
+        expect: STOPPING
+      - jsonpath: content.result[0].processes[0].state
+        expect: STOPPING
+  stopped-after-11-seconds:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 6000
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: infinite
+      - jsonpath: content.result[0].program_state
+        expect: STOPPED
+      - jsonpath: content.result[0].processes[0].state
+        expect: STOPPED

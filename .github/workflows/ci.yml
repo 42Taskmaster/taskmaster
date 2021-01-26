@@ -1,0 +1,24 @@
+name: Continuous Integration
+
+on: pull_request
+
+jobs:
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '1.15'
+    - uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+    - name: Compile tests files
+      run: make tests
+    - name: Install tests Node.js dependencies
+      working-directory: tests
+      run: npm ci
+    - name: Launch tests
+      working-directory: tests
+      run: npm test
