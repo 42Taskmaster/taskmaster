@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"os/exec"
 	"time"
 
@@ -131,7 +132,8 @@ func NewProcess(id string, program *Program) *Process {
 }
 
 func (process *Process) Init() error {
-	parsedCommand, err := parser.ParseCommand(process.Program.Config.Cmd)
+	expandedCommand := os.ExpandEnv(process.Program.Config.Cmd)
+	parsedCommand, err := parser.ParseCommand(expandedCommand)
 	if err != nil {
 		return err
 	}
