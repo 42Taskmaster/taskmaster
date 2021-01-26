@@ -6,8 +6,11 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"syscall"
+
+	"github.com/VisorRaptors/taskmaster/machine"
 )
 
 type Programs map[string]*Program
@@ -64,8 +67,62 @@ func (program *Program) Restart() {
 	program.Start()
 }
 
-func (program *Program) GetState() string {
-	return "OK"
+func (program *Program) GetState() machine.StateType {
+	starting := 0
+	running := 0
+	backoff := 0
+	stopping := 0
+	stopped := 0
+	exited := 0
+	fatal := 0
+	unknown := 0
+
+	for _, process := range program.Processes {
+		switch process.Machine.Current() {
+		case ProcessStateStarting:
+			starting++
+		case ProcessStateRunning:
+			running++
+		case ProcessStateBackoff:
+			backoff++
+		case ProcessStateStopping:
+			stopping++
+		case ProcessStateStopped:
+			stopped++
+		case ProcessStateExited:
+			exited++
+		case ProcessStateFatal:
+			fatal++
+		default:
+			unknown++
+		}
+	}
+
+	if unknown > 0 {
+		return ProcessStateUnknown
+	}
+	if fatal > 0 {
+		return ProcessStateFatal
+	}
+	if starting > 0 {
+		return ProcessStateStarting
+	}
+	if stopping > 0 {
+		return ProcessStateStopping
+	}
+	if backoff > 0 {
+		return ProcessStateBackoff
+	}
+	if stopped == len(program.Processes) {
+		return ProcessStateStopped
+	}
+	if exited == len(program.Processes) {
+		return ProcessStateExited
+	}
+	if running > 0 {
+		return ProcessStateRunning
+	}
+	return ProcessStateUnknown
 }
 
 func (program *Program) GetProcessById(id string) *Process {
@@ -74,6 +131,23 @@ func (program *Program) GetProcessById(id string) *Process {
 		return nil
 	}
 	return process
+}
+
+func (program *Program) GetSortedProcesses() []*Process {
+	processIds := []string{}
+
+	for id, _ := range program.Processes {
+		processIds = append(processIds, id)
+	}
+
+	sort.Strings(processIds)
+
+	processes := []*Process{}
+	for _, id := range processIds {
+		processes = append(processes, program.GetProcessById(id))
+	}
+
+	return processes
 }
 
 func programParse(programManager *ProgramManager, config ProgramConfig) *Program {
