@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/VisorRaptors/taskmaster/machine"
 )
@@ -24,8 +25,8 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 }
 
 type HttpJSONResponse struct {
-	Error  string        `json:"error"`
-	Result []interface{} `json:"result"`
+	Error  string        `json:"error,omitempty"`
+	Result []interface{} `json:"result,omitempty"`
 }
 
 type HttpProgramState struct {
@@ -68,16 +69,27 @@ func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r
 	}
 }
 
+type HttpProgramNameInputJSON struct {
+	ProgramName string `json:"program_name"`
+}
+
 func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+	// {"program_name":""}
 	switch r.Method {
 	case "POST":
-		httpJSONResponse := HttpJSONResponse{}
-		err := r.ParseForm()
-		if err != nil {
+		var (
+			input            HttpProgramNameInputJSON
+			httpJSONResponse HttpJSONResponse
+		)
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&input); err != nil {
 			log.Panic(err)
+			return
 		}
-		programName := r.Form.Get("program_name")
-		err = programManager.StartProgramByName(programName)
+
+		programName := input.ProgramName
+		err := programManager.StartProgramByName(programName)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		}
@@ -94,13 +106,19 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		httpJSONResponse := HttpJSONResponse{}
-		err := r.ParseForm()
-		if err != nil {
+		var (
+			input            HttpProgramNameInputJSON
+			httpJSONResponse HttpJSONResponse
+		)
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&input); err != nil {
 			log.Panic(err)
+			return
 		}
-		programName := r.Form.Get("program_name")
-		err = programManager.StopProgramByName(programName)
+
+		programName := input.ProgramName
+		err := programManager.StopProgramByName(programName)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		}
@@ -117,13 +135,19 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		httpJSONResponse := HttpJSONResponse{}
-		err := r.ParseForm()
-		if err != nil {
-			log.Print(err)
+		var (
+			input            HttpProgramNameInputJSON
+			httpJSONResponse HttpJSONResponse
+		)
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&input); err != nil {
+			log.Panic(err)
+			return
 		}
-		programName := r.Form.Get("program_name")
-		err = programManager.RestartProgramByName((programName))
+
+		programName := input.ProgramName
+		err := programManager.RestartProgramByName((programName))
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		}
@@ -137,12 +161,38 @@ func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, 
 	}
 }
 
+type HttpConfigurationEndpointInputJSON struct {
+	ConfigurationData string `json:"file"`
+}
+
 func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		fmt.Fprint(w, "get start")
 	case "PUT":
-		fmt.Fprint(w, "put start")
+		var (
+			input            HttpConfigurationEndpointInputJSON
+			httpJSONResponse HttpJSONResponse
+		)
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&input); err != nil {
+			log.Panic(err)
+			return
+		}
+
+		reader := strings.NewReader(input.ConfigurationData)
+
+		programsConfigurations, err := configParse(reader)
+		programManager.LoadConfiguration(programsConfigurations)
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		}
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

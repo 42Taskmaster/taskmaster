@@ -1,7 +1,6 @@
 programs:
-  infinite:
-    cmd: "bin_infinite"
+  dev-zero:
+    cmd: "cat /dev/zero"
     numprocs: 1
     autostart: false
-    stoptime: 10
     starttime: 1

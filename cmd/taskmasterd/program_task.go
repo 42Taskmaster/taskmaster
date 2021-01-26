@@ -10,7 +10,7 @@ const (
 )
 
 type ProgramTask struct {
-	Action    ProgramTaskAction
-	Program   *Program
-	ProcessID string
+	Action  ProgramTaskAction
+	Program *Program
+	Process *Process
 }

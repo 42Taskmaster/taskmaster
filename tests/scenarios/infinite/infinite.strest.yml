@@ -4,10 +4,9 @@ requests:
       url: http://localhost:8080/start
       method: POST
       postData:
-        mimeType: application/x-www-form-urlencoded
-        params:
-          - name: program_name
-            value: infinite
+        mimeType: application/json
+        text:
+          program_name: infinite
     validate:
       - jsonpath: status
         expect: 200
@@ -29,10 +28,9 @@ requests:
       url: http://localhost:8080/stop
       method: POST
       postData:
-        mimeType: application/x-www-form-urlencoded
-        params:
-          - name: program_name
-            value: infinite
+        mimeType: application/json
+        text:
+          program_name: infinite
     validate:
       - jsonpath: status
         expect: 200

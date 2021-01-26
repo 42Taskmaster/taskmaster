@@ -26,3 +26,5 @@ taskmastersh
 !cmd/taskmastersh
 
 AUTO
+
+.DS_Store

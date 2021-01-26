@@ -1,30 +1,26 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"io"
 	"log"
 	"os"
 	"sort"
-	"strconv"
 	"syscall"
 
 	"github.com/VisorRaptors/taskmaster/machine"
 )
 
-type Programs map[string]*Program
-
 type Program struct {
 	ProgramManager *ProgramManager
-	Processes      map[string]*Process
+	Processes      ProcessMap
 	Config         ProgramConfig
 	Cache          ProgramCache
 }
 
 type ProgramCache struct {
 	Env            []string
-	Stdout, Stderr io.Writer
+	Stdout, Stderr io.WriteCloser
 }
 
 type ProgramState string
@@ -41,8 +37,7 @@ const (
 )
 
 func (program *Program) Start() {
-	log.Println("start is called")
-	for _, process := range program.Processes {
+	program.Processes.Range(func(key string, process *Process) bool {
 		_, err := process.Machine.Send(ProcessEventStart)
 		if err != nil {
 			log.Println(err)
@@ -50,16 +45,18 @@ func (program *Program) Start() {
 		if errors.Is(err, syscall.ENOENT) {
 			log.Println("can not launch process as the command does not exist")
 		}
-	}
+		return true
+	})
 }
 
 func (program *Program) Stop() {
-	for _, process := range program.Processes {
+	program.Processes.Range(func(key string, process *Process) bool {
 		_, err := process.Machine.Send(ProcessEventStop)
 		if err != nil {
 			log.Println(err)
 		}
-	}
+		return true
+	})
 }
 
 func (program *Program) Restart() {
@@ -77,7 +74,7 @@ func (program *Program) GetState() machine.StateType {
 	fatal := 0
 	unknown := 0
 
-	for _, process := range program.Processes {
+	program.Processes.Range(func(key string, process *Process) bool {
 		switch process.Machine.Current() {
 		case ProcessStateStarting:
 			starting++
@@ -96,7 +93,9 @@ func (program *Program) GetState() machine.StateType {
 		default:
 			unknown++
 		}
-	}
+
+		return true
+	})
 
 	if unknown > 0 {
 		return ProcessStateUnknown
@@ -113,10 +112,10 @@ func (program *Program) GetState() machine.StateType {
 	if backoff > 0 {
 		return ProcessStateBackoff
 	}
-	if stopped == len(program.Processes) {
+	if stopped == program.Processes.Length() {
 		return ProcessStateStopped
 	}
-	if exited == len(program.Processes) {
+	if exited == program.Processes.Length() {
 		return ProcessStateExited
 	}
 	if running > 0 {
@@ -126,7 +125,7 @@ func (program *Program) GetState() machine.StateType {
 }
 
 func (program *Program) GetProcessById(id string) *Process {
-	process, ok := program.Processes[id]
+	process, ok := program.Processes.Get(id)
 	if !ok {
 		return nil
 	}
@@ -136,9 +135,10 @@ func (program *Program) GetProcessById(id string) *Process {
 func (program *Program) GetSortedProcesses() []*Process {
 	processIds := []string{}
 
-	for id, _ := range program.Processes {
-		processIds = append(processIds, id)
-	}
+	program.Processes.Range(func(key string, process *Process) bool {
+		processIds = append(processIds, process.ID)
+		return true
+	})
 
 	sort.Strings(processIds)
 
@@ -150,55 +150,35 @@ func (program *Program) GetSortedProcesses() []*Process {
 	return processes
 }
 
-func programParse(programManager *ProgramManager, config ProgramConfig) *Program {
-	var stdoutWriter, stderrWriter io.Writer
-
-	if len(config.Stdout) > 0 {
-		stdoutFile, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stdoutWriter = bufio.NewWriter(stdoutFile)
-	}
-	if len(config.Stderr) > 0 {
-		stderrFile, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		stderrWriter = bufio.NewWriter(stderrFile)
-	}
-
-	env := os.Environ()
-	for name, value := range config.Env {
-		concatenatedKeyValue := name + "=" + value
-
-		env = append(env, concatenatedKeyValue)
-	}
-
-	program := &Program{
-		ProgramManager: programManager,
-		Processes:      make(map[string]*Process),
-		Config:         config,
-		Cache: ProgramCache{
-			Env:    env,
-			Stdout: stdoutWriter,
-			Stderr: stderrWriter,
-		}}
-
-	for index := 1; index <= config.Numprocs; index++ {
-		id := strconv.Itoa(index)
-		program.Processes[id] = NewProcess(id, program)
-	}
-
-	return program
+func openStdFile(path string) (io.WriteCloser, error) {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	return file, err
 }
 
-func programsParse(programManager *ProgramManager, config ProgramsConfiguration) Programs {
-	parsedPrograms := make(Programs)
+func (program *Program) SetProgramStds(stdout string, stderr string) {
+	if program.Config.Stdout != stdout {
+		program.Cache.Stdout.Close()
 
-	for name, program := range config {
-		parsedPrograms[name] = programParse(programManager, program)
+		if len(stdout) > 0 {
+			stdoutFile, err := openStdFile(stdout)
+			if err != nil {
+				log.Fatal(err)
+			}
+			stdoutWriter := stdoutFile
+			program.Cache.Stdout = stdoutWriter
+		}
 	}
 
-	return parsedPrograms
+	if program.Config.Stderr != stderr {
+		program.Cache.Stderr.Close()
+
+		if len(stderr) > 0 {
+			stderrFile, err := openStdFile(stderr)
+			if err != nil {
+				log.Fatal(err)
+			}
+			stderrWriter := stderrFile
+			program.Cache.Stderr = stderrWriter
+		}
+	}
 }

@@ -145,13 +145,13 @@ func (process *Process) Start() error {
 		}
 	}
 
-	hasExited := make(chan struct{})
+	process.DeadCh = make(chan struct{})
 
 	go func() {
 		select {
 		case <-time.After(time.Duration(process.Program.Config.Starttime) * time.Second):
 			process.Machine.Send(ProcessEventStarted)
-		case <-hasExited:
+		case <-process.DeadCh:
 			return
 		}
 	}()
@@ -159,7 +159,7 @@ func (process *Process) Start() error {
 	go func() {
 		process.Cmd.Wait()
 
-		close(hasExited)
+		close(process.DeadCh)
 
 		event := ProcessEventStopped
 		if process.Cmd.ProcessState.Exited() {
@@ -168,7 +168,7 @@ func (process *Process) Start() error {
 
 		_, err := process.Machine.Send(event)
 		if err != nil {
-			log.Print("expected no error to be returned but got %v\n", err)
+			log.Printf("expected no error to be returned but got %v\n", err)
 		}
 	}()
 
@@ -229,9 +229,9 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 		select {
 		case <-time.After(time.Duration(stoptime) * time.Second):
 			programTasksChan <- ProgramTask{
-				Action:    ProgramTaskActionKill,
-				Program:   processContext.Process.Program,
-				ProcessID: processContext.Process.ID,
+				Action:  ProgramTaskActionKill,
+				Program: processContext.Process.Program,
+				Process: processContext.Process,
 			}
 		case <-deadCh:
 		}

@@ -8,9 +8,14 @@ import (
 func main() {
 	argsParse()
 
-	programsConfiguration, err := configParse()
+	configReader, err := configGetFileReader(configPathArg)
+	if err != nil {
+		log.Panic(err)
+	}
+	programsConfiguration, err := configParse(configReader)
 	if err != nil {
 		log.Fatalf("Error parsing configuration file: %s: %v\n", configPathArg, err)
+		os.Exit(1)
 	}
 
 	daemonInit()
@@ -24,7 +29,8 @@ func main() {
 	defer lockFileRemove()
 
 	programManager := NewProgramManager()
-	programManager.Programs = programsParse(programManager, programsConfiguration)
+	programManager.LoadConfiguration(programsConfiguration)
+	//programManager.Programs = programsParse(programManager, programsConfiguration)
 
 	taskmasterd := NewTaskmasterd(programManager)
 	taskmasterd.SignalsSetup()

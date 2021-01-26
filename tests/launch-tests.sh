@@ -21,4 +21,20 @@ testInfinite() {
     assertTrue $?
 }
 
+testHotReloadTotalNewConfig() {
+    cd hot-reload-total-new-config
+
+    ./test.sh
+
+    assertTrue $?
+}
+
+testHotReloadUpdateProgramConfig() {
+    cd hot-reload-update-program-config
+
+    ./test.sh
+
+    assertTrue $?
+}
+
 . ./vendor/shunit2/shunit2

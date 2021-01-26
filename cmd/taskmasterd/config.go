@@ -1,14 +1,14 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 )
 
 const configDefaultPath = "./taskmaster.yaml"
 
-func configFileExists() bool {
+func configFileExists(path string) bool {
 	_, err := os.Stat(configPathArg)
 	if err == nil {
 		return true
@@ -16,25 +16,29 @@ func configFileExists() bool {
 	return !os.IsNotExist(err)
 }
 
-func configCheckPath() {
-	if !configFileExists() {
+func configCheckPath(path string) bool {
+	if !configFileExists(path) {
 		log.Printf("Could not find config file: %s", configPathArg)
 		if configPathArg == configDefaultPath {
 			log.Print("Use -c option to specify your config file location")
 		}
-		os.Exit(1)
+		return false
 	}
+	return true
 }
 
-func configParse() (ProgramsConfiguration, error) {
-	configCheckPath()
-
-	yamlData, err := ioutil.ReadFile(configPathArg)
-	if err != nil {
-		return ProgramsConfiguration{}, err
+func configGetFileReader(path string) (io.Reader, error) {
+	if !configCheckPath(path) {
+		os.Exit(1)
 	}
+	return os.Open(path)
+}
 
-	parsedPrograms := yamlParse(yamlData)
+func configParse(r io.Reader) (ProgramsConfiguration, error) {
+	parsedPrograms, err := yamlParse(r)
+	if err != nil {
+		return nil, err
+	}
 
 	programsConfiguration, err := parsedPrograms.Validate()
 

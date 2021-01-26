@@ -9,7 +9,14 @@ import (
 func fork() (int, error) {
 	logFile := logGetFile()
 
-	cmd := exec.Command(os.Args[0], "-d")
+	forkArgs := []string{
+		"-d",
+	}
+	for _, parent := range os.Args[1:] {
+		forkArgs = append(forkArgs, parent)
+	}
+
+	cmd := exec.Command(os.Args[0], forkArgs...)
 	cmd.Env = os.Environ()
 	cmd.Stdin = nil
 	cmd.Stdout = logFile
