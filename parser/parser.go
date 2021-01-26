@@ -20,7 +20,6 @@ const (
 	parserEventCharacter  machine.EventType = "in-word"
 
 	parserEventDoubleQuote machine.EventType = "double-quote"
-	parserEvent
 
 	parserEventSingleQuote machine.EventType = "single-quote"
 	parserEventEnd         machine.EventType = "end"
