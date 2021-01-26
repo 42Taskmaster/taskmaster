@@ -249,11 +249,11 @@ func TestStarttimeSetToDefaultValue(t *testing.T) {
 
 	config, _ := programs.Validate()
 
-	if starttime := config["taskmaster"].Starttime; starttime != 1 {
+	if starttime := config["taskmaster"].Starttime; starttime != 5 {
 		t.Errorf(
 			"Starttime not set to correct default value: %v; expected %v",
 			starttime,
-			1,
+			5,
 		)
 	}
 }

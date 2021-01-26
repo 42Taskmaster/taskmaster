@@ -1,0 +1,95 @@
+requests:
+  start-dev-zero-process:
+    request:
+      url: http://localhost:8080/start
+      method: POST
+      postData:
+        mimeType: application/json
+        text:
+          program_name: dev-zero
+    validate:
+      - jsonpath: status
+        expect: 200
+  running-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result[0].program_name
+        expect: dev-zero
+      - jsonpath: content.result[0].program_state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes.length
+        expect: 1
+      - jsonpath: content.result[0].processes[0].state
+        expect: RUNNING
+  hot-reload-increment-numprocs:
+    request:
+      url: http://localhost:8080/configuration
+      method: PUT
+      postData:
+        mimeType: application/json
+        text:
+          file: >-
+            programs:
+              dev-zero:
+                cmd: "cat /dev/zero"
+                numprocs: 3
+                autostart: true
+                starttime: 1
+  dev-zero-has-3-procs:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 2000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.length
+        expect: 1
+      - jsonpath: content.result[0].program_name
+        expect: dev-zero
+      - jsonpath: content.result[0].program_state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes.length
+        expect: 3
+      - jsonpath: content.result[0].processes[0].state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes[1].state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes[2].state
+        expect: RUNNING
+  hot-reload-decrement-numprocs:
+    request:
+      url: http://localhost:8080/configuration
+      method: PUT
+      postData:
+        mimeType: application/json
+        text:
+          file: >-
+            programs:
+              dev-zero:
+                cmd: "cat /dev/zero"
+                numprocs: 2
+                autostart: true
+                starttime: 1
+  dev-zero-has-2-procs:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 2000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.length
+        expect: 1
+      - jsonpath: content.result[0].program_name
+        expect: dev-zero
+      - jsonpath: content.result[0].program_state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes.length
+        expect: 2
+      - jsonpath: content.result[0].processes[0].state
+        expect: RUNNING
+      - jsonpath: content.result[0].processes[1].state
+        expect: RUNNING

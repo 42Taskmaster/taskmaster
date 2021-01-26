@@ -164,7 +164,7 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	}
 
 	if program.Starttime == nil {
-		config.Starttime = 1
+		config.Starttime = 5
 	} else if *program.Starttime < 0 || *program.Starttime > HourInSeconds {
 		return &ErrProgramsYamlValidation{
 			Field: "Starttime",
