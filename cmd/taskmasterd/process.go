@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/VisorRaptors/taskmaster/machine"
+	"github.com/VisorRaptors/taskmaster/parser"
 )
 
 const (
@@ -130,10 +130,13 @@ func NewProcess(id string, program *Program) *Process {
 	return process
 }
 
-func (process *Process) Init() {
-	commandChunks := strings.Split(process.Program.Config.Cmd, " ")
+func (process *Process) Init() error {
+	parsedCommand, err := parser.ParseCommand(process.Program.Config.Cmd)
+	if err != nil {
+		return err
+	}
 
-	cmd := exec.Command(commandChunks[0], commandChunks[1:]...)
+	cmd := exec.Command(parsedCommand.Cmd, parsedCommand.Args...)
 	cmd.Env = process.Program.Cache.Env
 	cmd.Stdin = nil
 	cmd.Stdout = process.Program.Cache.Stdout
@@ -141,10 +144,14 @@ func (process *Process) Init() {
 	cmd.Dir = process.Program.Config.Workingdir
 
 	process.Cmd = cmd
+
+	return nil
 }
 
 func (process *Process) Start() error {
-	process.Init()
+	if err := process.Init(); err != nil {
+		return err
+	}
 
 	process.Program.ProgramManager.Taskmasterd.SetUmask(process.Program.Config.Umask)
 	if err := process.Cmd.Start(); err != nil {
