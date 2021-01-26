@@ -31,7 +31,7 @@ func main() {
 	taskmasterd := NewTaskmasterd()
 	taskmasterd.SignalsSetup()
 
-	programManager := NewProgramManager()
+	programManager := NewProgramManager(taskmasterd)
 	programManager.LoadConfiguration(programsConfiguration)
 
 	taskmasterd.ProgramManager = programManager

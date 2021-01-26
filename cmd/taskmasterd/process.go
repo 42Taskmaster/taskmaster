@@ -53,7 +53,7 @@ func NewProcess(id string, program *Program) *Process {
 	}
 
 	process.Machine = machine.Machine{
-		Context: ProcessMachineContext{
+		Context: &ProcessMachineContext{
 			Process:    process,
 			Starttries: 0,
 		},
