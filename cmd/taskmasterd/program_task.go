@@ -7,6 +7,7 @@ const (
 	ProgramTaskActionStop    ProgramTaskAction = "STOP"
 	ProgramTaskActionRestart ProgramTaskAction = "RESTART"
 	ProgramTaskActionKill    ProgramTaskAction = "KILL"
+	ProgramTaskActionRemove  ProgramTaskAction = "REMOVE"
 )
 
 type ProgramTask struct {

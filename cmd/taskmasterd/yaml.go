@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"io"
 
 	"gopkg.in/yaml.v2"
 )
@@ -222,13 +222,12 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	return nil, config
 }
 
-func yamlParse(yamlData []byte) ProgramsYaml {
+func yamlParse(r io.Reader) (ProgramsYaml, error) {
 	var programsYaml ProgramsYaml
 
-	err := yaml.Unmarshal(yamlData, &programsYaml)
-	if err != nil {
-		log.Fatalf("Error parsing config file: %s", err)
+	decoder := yaml.NewDecoder(r)
+	if err := decoder.Decode(&programsYaml); err != nil {
+		return ProgramsYaml{}, err
 	}
-
-	return programsYaml
+	return programsYaml, nil
 }

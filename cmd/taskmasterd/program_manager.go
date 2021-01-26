@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"sort"
+	"strconv"
 	"syscall"
 )
 
@@ -19,6 +23,7 @@ func NewProgramManager() *ProgramManager {
 }
 
 func (programManager *ProgramManager) Init() {
+	programManager.Programs = make(Programs)
 	programManager.ProgramTaskChan = make(chan ProgramTask)
 
 	go func() {
@@ -34,6 +39,8 @@ func (programManager *ProgramManager) Init() {
 				if process != nil {
 					process.Cmd.Process.Signal(syscall.SIGKILL)
 				}
+			} else if programTask.Action == ProgramTaskActionRemove {
+				delete(programManager.Programs, programTask.Program.Config.Name)
 			}
 		}
 	}()
@@ -101,7 +108,7 @@ func (programManager *ProgramManager) RestartProgramByName(name string) error {
 func (programManager *ProgramManager) GetSortedPrograms() []*Program {
 	programsKeys := []string{}
 
-	for key, _ := range programManager.Programs {
+	for key := range programManager.Programs {
 		programsKeys = append(programsKeys, key)
 	}
 
@@ -118,4 +125,103 @@ func (programManager *ProgramManager) GetSortedPrograms() []*Program {
 	}
 
 	return programs
+}
+
+func ProgramListContainsProgram(programList []string, programToFind string) bool {
+	for _, program := range programList {
+		if program == programToFind {
+			return true
+		}
+	}
+	return false
+}
+
+func (programManager *ProgramManager) LoadConfiguration(programsConfiguration ProgramsConfiguration) {
+	configPrograms := make([]string, 0, len(programsConfiguration))
+	for name, programConfiguration := range programsConfiguration {
+		configPrograms = append(configPrograms, name)
+		program := programManager.GetProgramByName(name)
+		if program != nil {
+			// le program existe déjà, il faut le mettre à jour
+			programManager.UpdateProgram(program, programConfiguration)
+		} else {
+			// le program n'existe pas, il faut l'ajouter
+			programManager.AddProgram(programConfiguration)
+		}
+	}
+
+	for name := range programManager.Programs {
+		if !ProgramListContainsProgram(configPrograms, name) {
+			// le program n'existe plus, il faut le retirer
+			programManager.RemoveProgramByName(name)
+		}
+	}
+}
+
+func (programManager *ProgramManager) UpdateProgram(program *Program, programConfig ProgramConfig) {
+
+}
+
+func (programManager *ProgramManager) AddProgram(programConfig ProgramConfig) {
+	var stdoutWriter, stderrWriter io.Writer
+
+	if len(programConfig.Stdout) > 0 {
+		stdoutFile, err := os.OpenFile(programConfig.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		stdoutWriter = bufio.NewWriter(stdoutFile)
+	}
+	if len(programConfig.Stderr) > 0 {
+		stderrFile, err := os.OpenFile(programConfig.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		stderrWriter = bufio.NewWriter(stderrFile)
+	}
+
+	env := os.Environ()
+	for name, value := range programConfig.Env {
+		concatenatedKeyValue := name + "=" + value
+
+		env = append(env, concatenatedKeyValue)
+	}
+
+	program := &Program{
+		ProgramManager: programManager,
+		Processes:      make(map[string]*Process),
+		Config:         programConfig,
+		Cache: ProgramCache{
+			Env:    env,
+			Stdout: stdoutWriter,
+			Stderr: stderrWriter,
+		},
+	}
+
+	for index := 1; index <= programConfig.Numprocs; index++ {
+		id := strconv.Itoa(index)
+		program.Processes[id] = NewProcess(id, program)
+	}
+
+	programManager.Programs[programConfig.Name] = program
+}
+
+func (programManager *ProgramManager) RemoveProgramByName(name string) {
+	program := programManager.GetProgramByName(name)
+	programManager.ProgramTaskChan <- ProgramTask{
+		Action:  ProgramTaskActionStop,
+		Program: program,
+	}
+
+	go func() {
+		for _, process := range program.Processes {
+			<-process.DeadCh
+		}
+		// check si tous les process sont stop
+
+		programManager.ProgramTaskChan <- ProgramTask{
+			Action:  ProgramTaskActionRemove,
+			Program: program,
+		}
+	}()
 }

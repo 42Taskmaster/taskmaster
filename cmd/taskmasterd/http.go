@@ -24,8 +24,8 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 }
 
 type HttpJSONResponse struct {
-	Error  string        `json:"error"`
-	Result []interface{} `json:"result"`
+	Error  string        `json:"error,omitempty"`
+	Result []interface{} `json:"result,omitempty"`
 }
 
 type HttpProgramState struct {
@@ -142,7 +142,17 @@ func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWr
 	case "GET":
 		fmt.Fprint(w, "get start")
 	case "PUT":
-		fmt.Fprint(w, "put start")
+		httpJSONResponse := HttpJSONResponse{}
+		programsConfigurations, err := configParse(r.Body)
+		programManager.LoadConfiguration(programsConfigurations)
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		}
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
