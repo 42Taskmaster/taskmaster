@@ -10,14 +10,17 @@ import (
 )
 
 type ProgramManager struct {
+	Taskmasterd     *Taskmasterd
 	Programs        ProgramMap
 	ProgramTaskChan chan ProgramTask
 }
 
-func NewProgramManager() *ProgramManager {
-	var programManager ProgramManager
+func NewProgramManager(taskmasterd *Taskmasterd) *ProgramManager {
+	programManager := &ProgramManager{
+		Taskmasterd: taskmasterd,
+	}
 	programManager.Init()
-	return &programManager
+	return programManager
 }
 
 func (programManager *ProgramManager) Init() {

@@ -37,6 +37,8 @@ const (
 )
 
 func (program *Program) Start() {
+	log.Printf("Starting program '%s'", program.Config.Name)
+
 	program.Processes.Range(func(key string, process *Process) bool {
 		_, err := process.Machine.Send(ProcessEventStart)
 		if err != nil {
@@ -50,6 +52,8 @@ func (program *Program) Start() {
 }
 
 func (program *Program) Stop() {
+	log.Printf("Stopping program '%s'", program.Config.Name)
+
 	program.Processes.Range(func(key string, process *Process) bool {
 		_, err := process.Machine.Send(ProcessEventStop)
 		if err != nil {
@@ -60,8 +64,7 @@ func (program *Program) Stop() {
 }
 
 func (program *Program) Restart() {
-	program.Stop()
-	program.Start()
+	log.Printf("Restarting program '%s'", program.Config.Name)
 }
 
 func (program *Program) GetState() machine.StateType {
