@@ -12,6 +12,7 @@ const (
 	parserStateInWord             machine.StateType = "IN_WORD"
 	parserStateInWordDoubleQuoted machine.StateType = "IN_WORD_DOUBLE_QUOTED"
 	parserStateInWordSingleQuoted machine.StateType = "IN_WORD_SINGLE_QUOTED"
+	parserStateWaiting            machine.StateType = "WAITING"
 	parserStateEnd                machine.StateType = "END"
 )
 
@@ -117,7 +118,7 @@ func ParseCommand(cmd string) (ParsedCommand, error) {
 					parserEventCharacter:   parserStateInWordDoubleQuoted,
 					parserEventSingleQuote: parserStateInWordDoubleQuoted,
 
-					parserEventDoubleQuote: parserStateInWord,
+					parserEventDoubleQuote: parserStateWaiting,
 				},
 			},
 
@@ -131,7 +132,17 @@ func ParseCommand(cmd string) (ParsedCommand, error) {
 					parserEventCharacter:   parserStateInWordSingleQuoted,
 					parserEventDoubleQuote: parserStateInWordSingleQuoted,
 
-					parserEventSingleQuote: parserStateInWord,
+					parserEventSingleQuote: parserStateWaiting,
+				},
+			},
+
+			parserStateWaiting: machine.StateNode{
+				On: machine.Events{
+					parserEventWhitespace:  parserStateWhitespace,
+					parserEventCharacter:   parserStateInWord,
+					parserEventDoubleQuote: parserStateInWordDoubleQuoted,
+					parserEventSingleQuote: parserStateInWordSingleQuoted,
+					parserEventEnd:         parserStateEnd,
 				},
 			},
 
@@ -201,10 +212,6 @@ func parserStateWhitespaceAction(context machine.Context) (machine.EventType, er
 
 func parserStateInWordAction(context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
-
-	if *ctx.CurrentChar == '"' || *ctx.CurrentChar == '\'' {
-		return machine.NoopEvent, nil
-	}
 
 	ctx.CurrentChunk += string(*ctx.CurrentChar)
 
