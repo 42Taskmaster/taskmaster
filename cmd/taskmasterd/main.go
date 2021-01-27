@@ -31,11 +31,6 @@ func main() {
 	taskmasterd := NewTaskmasterd()
 	taskmasterd.SignalsSetup()
 
-	programManager := NewProgramManager(taskmasterd)
-	programManager.LoadConfiguration(programsConfiguration)
-
-	taskmasterd.ProgramManager = programManager
-
-	httpSetup(programManager)
+	httpSetup(taskmasterd)
 	httpListenAndServe()
 }

@@ -38,7 +38,7 @@ func (err *ErrProgramsYamlValidation) Error() string {
 	return "validation error for field " + err.Field + " : " + string(err.Issue)
 }
 
-type ProgramsConfiguration map[string]ProgramConfig
+type ProgramsConfiguration map[string]ProgramConfiguration
 
 type ProgramsYaml struct {
 	Programs map[string]ProgramYaml `yaml:"programs,omitempty"`
@@ -69,7 +69,7 @@ func (programs *ProgramsYaml) Validate() (ProgramsConfiguration, error) {
 	return programsConfiguration, nil
 }
 
-type ProgramConfig struct {
+type ProgramConfiguration struct {
 	Name         string
 	Cmd          string
 	Numprocs     int
@@ -120,10 +120,10 @@ func (program *ProgramYaml) NormalizedExitcodes() []int {
 	}
 }
 
-func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfig) {
+func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfiguration) {
 	const HourInSeconds = 60 * 60
 
-	config := ProgramConfig{
+	config := ProgramConfiguration{
 		Exitcodes: program.NormalizedExitcodes(),
 		Env:       program.Env,
 	}

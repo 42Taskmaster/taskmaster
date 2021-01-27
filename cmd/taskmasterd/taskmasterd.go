@@ -1,59 +1,51 @@
 package main
 
 import (
+	"context"
 	"log"
-	"os"
-	"os/signal"
-	"strconv"
 	"sync"
-	"syscall"
 )
 
 type Taskmasterd struct {
-	ProgramManager *ProgramManager
-	Umask          int
-	UmaskLock      sync.Mutex
+	ProgramManager  *ProgramManager
+	Umask           int
+	UmaskLock       sync.Mutex
+	ProgramTaskChan chan ProgramTask
+
+	Context context.Context
+	Cancel  context.CancelFunc
 }
 
 func NewTaskmasterd() *Taskmasterd {
-	return &Taskmasterd{
-		Umask: -1,
-	}
-}
+	context, cancel := context.WithCancel(context.Background())
 
-func (taskmasterd *Taskmasterd) SignalsSetup() {
-	taskmasterd.SignalsExitSetup()
-}
-
-func (taskmasterd *Taskmasterd) SignalsExitSetup() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGQUIT)
-	go func() {
-		<-sigs
-		lockFileRemove()
-		os.Exit(0)
-	}()
-}
-
-func (taskmasterd *Taskmasterd) SetUmask(umask string) {
-	if len(umask) == 0 {
-		return
+	taskmasterd := &Taskmasterd{
+		Umask:   -1,
+		Context: context,
+		Cancel:  cancel,
 	}
 
-	taskmasterd.UmaskLock.Lock()
-	defer taskmasterd.UmaskLock.Unlock()
+	go taskmasterd.ProgramsGoroutine()
 
-	log.Print("Setting umask: ", umask)
-	octal, err := strconv.ParseInt(umask, 8, 64)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	taskmasterd.Umask = syscall.Umask(int(octal))
+	return taskmasterd
 }
 
-func (taskmasterd *Taskmasterd) ResetUmask() {
-	if taskmasterd.Umask != -1 {
-		syscall.Umask(taskmasterd.Umask)
+func (taskmasterd *Taskmasterd) ProgramsGoroutine() {
+	programs := make(map[string]Program)
+
+	for task := range taskmasterd.ProgramTaskChan {
+		switch task.Action {
+		case ProgramTaskActionStart:
+			program, ok := programs[task.ProgramID]
+			if !ok {
+				log.Printf("program '%s' not found", task.ProgramID)
+			} else {
+				program.Start()
+			}
+		case ProgramTaskActionStop:
+		case ProgramTaskActionRestart:
+		case ProgramTaskActionKill:
+
+		}
 	}
 }

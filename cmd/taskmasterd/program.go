@@ -1,187 +1,165 @@
 package main
 
 import (
-	"errors"
-	"io"
+	"context"
+	"fmt"
 	"log"
-	"os"
-	"sort"
-	"syscall"
-
-	"github.com/VisorRaptors/taskmaster/machine"
 )
+
+type ErrProcessNotFound struct {
+	ProcessID string
+}
+
+func (err *ErrProcessNotFound) Error() string {
+	return fmt.Sprintf(
+		"process not found: %s",
+		err.ProcessID,
+	)
+}
 
 type Program struct {
-	ProgramManager *ProgramManager
-	Processes      ProcessMap
-	Config         ProgramConfig
-	Cache          ProgramCache
+	ProcessTaskChan chan Tasker
+
+	Context         context.Context
+
+	processes map[string]Process
+	configuration ProgramConfiguration
 }
 
-type ProgramCache struct {
-	Env            []string
-	Stdout, Stderr io.WriteCloser
+type NewProgramArgs struct {
+	Context         context.Context
+	Configuration ProgramConfiguration
 }
 
-type ProgramState string
+func NewProgram(args NewProgramArgs) *Program {
+	program := &Program{
+		Context:         args.Context,
+		
+		processes: make(map[string]Process)
+		configuration: args.Configuration,
+	}
 
-const (
-	ProgramStateStarting ProgramState = "STARTING"
-	ProgramStateBackoff  ProgramState = "BACKOFF"
-	ProgramStateRunning  ProgramState = "RUNNING"
-	ProgramStateStopping ProgramState = "STOPPING"
-	ProgramStateStopped  ProgramState = "STOPPED"
-	ProgramStateExited   ProgramState = "EXITED"
-	ProgramStateFatal    ProgramState = "FATAL"
-	ProgramStateUnknown  ProgramState = "UNKNOWN"
-)
+	go program.Monitor()
 
-func (program *Program) Start() {
-	log.Printf("Starting program '%s'", program.Config.Name)
-
-	program.Processes.Range(func(key string, process *Process) bool {
-		_, err := process.Machine.Send(ProcessEventStart)
-		if err != nil {
-			log.Println(err)
-		}
-		if errors.Is(err, syscall.ENOENT) {
-			log.Println("can not launch process as the command does not exist")
-		}
-		return true
-	})
+	return program
 }
 
-func (program *Program) Stop() {
-	log.Printf("Stopping program '%s'", program.Config.Name)
 
-	program.Processes.Range(func(key string, process *Process) bool {
-		_, err := process.Machine.Send(ProcessEventStop)
-		if err != nil {
-			log.Println(err)
-		}
-		return true
-	})
-}
-
-func (program *Program) Restart() {
-	log.Printf("Restarting program '%s'", program.Config.Name)
-}
-
-func (program *Program) GetState() machine.StateType {
-	starting := 0
-	running := 0
-	backoff := 0
-	stopping := 0
-	stopped := 0
-	exited := 0
-	fatal := 0
-	unknown := 0
-
-	program.Processes.Range(func(key string, process *Process) bool {
-		switch process.Machine.Current() {
-		case ProcessStateStarting:
-			starting++
-		case ProcessStateRunning:
-			running++
-		case ProcessStateBackoff:
-			backoff++
-		case ProcessStateStopping:
-			stopping++
-		case ProcessStateStopped:
-			stopped++
-		case ProcessStateExited:
-			exited++
-		case ProcessStateFatal:
-			fatal++
-		default:
-			unknown++
-		}
-
-		return true
-	})
-
-	if unknown > 0 {
-		return ProcessStateUnknown
-	}
-	if fatal > 0 {
-		return ProcessStateFatal
-	}
-	if starting > 0 {
-		return ProcessStateStarting
-	}
-	if stopping > 0 {
-		return ProcessStateStopping
-	}
-	if backoff > 0 {
-		return ProcessStateBackoff
-	}
-	if stopped == program.Processes.Length() {
-		return ProcessStateStopped
-	}
-	if exited == program.Processes.Length() {
-		return ProcessStateExited
-	}
-	if running > 0 {
-		return ProcessStateRunning
-	}
-	return ProcessStateUnknown
-}
-
-func (program *Program) GetProcessById(id string) *Process {
-	process, ok := program.Processes.Get(id)
+func (program  *Program) GetProcessByID(id string) (Process, error) {
+	process, ok := program.process[id]
 	if !ok {
-		return nil
-	}
-	return process
-}
-
-func (program *Program) GetSortedProcesses() []*Process {
-	processIds := []string{}
-
-	program.Processes.Range(func(key string, process *Process) bool {
-		processIds = append(processIds, process.ID)
-		return true
-	})
-
-	sort.Strings(processIds)
-
-	processes := []*Process{}
-	for _, id := range processIds {
-		processes = append(processes, program.GetProcessById(id))
-	}
-
-	return processes
-}
-
-func openStdFile(path string) (io.WriteCloser, error) {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	return file, err
-}
-
-func (program *Program) SetProgramStds(stdout string, stderr string) {
-	if program.Config.Stdout != stdout {
-		program.Cache.Stdout.Close()
-
-		if len(stdout) > 0 {
-			stdoutFile, err := openStdFile(stdout)
-			if err != nil {
-				log.Fatal(err)
-			}
-			stdoutWriter := stdoutFile
-			program.Cache.Stdout = stdoutWriter
+		return Process{}, &ErrProcessNotFound{
+			ProcessID: id,
 		}
 	}
 
-	if program.Config.Stderr != stderr {
-		program.Cache.Stderr.Close()
+	return process, nil
+}
 
-		if len(stderr) > 0 {
-			stderrFile, err := openStdFile(stderr)
-			if err != nil {
-				log.Fatal(err)
+func (program *Program) getProcessFromTasker(task Tasker) (Process, error) {
+	processTask := task.(ProcessTask)
+	processId := processTask.ProcessID
+	process, err := program.GetProcessByID(processId)
+	if err != nil {
+		return Process{}, err
+	}
+
+	return process, nil
+}
+
+func (program *Program) startSingleProcess(task Tasker) error {
+	process, err := program.getProcessFromTasker(task)
+	if err != nil {
+		return err
+	}
+
+	process.Start()
+}
+
+func (program *Program) stopSingleProcess(task Tasker) error {
+	process, err := program.getProcessFromTasker(task)
+	if err != nil {
+		return err
+	}
+
+	process.Stop()
+}
+
+func (program *Program) restartSingleProcess(task Tasker) error {
+	process, err := program.getProcessFromTasker(task)
+	if err != nil {
+		return err
+	}
+
+	process.Restart()
+}
+
+func (program *Program) killSingleProcess(task Tasker) error {
+	process, err := program.getProcessFromTasker(task)
+	if err != nil {
+		return err
+	}
+
+	process.Kill()
+}
+
+func (program *Program) startAllProcesses(task Tasker) error {
+	task.(ProgramTask)
+
+	for _, process := range program.processes {
+		process.Start()
+	}
+}
+
+func (program *Program) stopAllProcesses(task Tasker) error {
+	task.(ProgramTask)
+
+	for _, process := range program.processes {
+		process.Stop()
+	}
+}
+
+func (program *Program) restartAllProcesses(task Tasker) error {
+	task.(ProgramTask)
+
+	for _, process := range program.processes {
+		process.Restart()
+	}
+}
+
+func (program *Program) getConfig(task Tasker) error {
+	programTaskWithResponse := task.(ProgramTaskWithResponse)
+
+	config := program.configuration
+	programTaskWithResponse.ResponseChan <- config
+}
+
+func (program *Program) Monitor() {
+	var handlers = map[ProcessTaskAction]func (*Program, Tasker) error{
+		ProcessTaskActionStart: (*Program).startSingleProcess,
+		ProcessTaskActionStop: (*Program).stopSingleProcess,
+		ProcessTaskActionRestart: (*Program).restartSingleProcess,
+		ProcessTaskActionKill: (*Program).killSingleProcess,
+
+		ProgramTaskActionStart: (*Program).startAllProcesses,
+		ProgramTaskActionStop: (*Program).stopAllProcesses,
+		ProgramTaskActionRestart: (*Program).restartAllProcesses,
+
+		ProgramTaskActionGetConfig: (*Program).getConfig,
+	}
+
+	for {
+		select {
+		case <-program.Context.Done():
+			return
+
+		case task := <-program.ProcessTaskChan:
+			fn, ok := handlers[task.GetAction()]
+			if !ok {
+				log.Fatalf("not implemented task: %v", task)
 			}
-			stderrWriter := stderrFile
-			program.Cache.Stderr = stderrWriter
+
+			fn(&program, task)
 		}
 	}
 }
