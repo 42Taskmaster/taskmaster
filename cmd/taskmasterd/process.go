@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os/exec"
+	"syscall"
 
 	"github.com/VisorRaptors/taskmaster/machine"
 )
@@ -15,7 +16,7 @@ type Process struct {
 
 	TaskActionChan chan TaskAction
 	Cmd            *exec.Cmd
-	Machine        machine.Machine
+	Machine        *machine.Machine
 
 	DeadCh chan struct{}
 }
@@ -26,8 +27,8 @@ type NewProcessArgs struct {
 	ProgramTaskChan chan<- Tasker
 }
 
-func NewProcess(args NewProcessArgs) *Process {
-	process := &Process{
+func NewProcess(args NewProcessArgs) Process {
+	process := Process{
 		ID:              args.ID,
 		Context:         args.Context,
 		ProgramTaskChan: args.ProgramTaskChan,
@@ -35,7 +36,7 @@ func NewProcess(args NewProcessArgs) *Process {
 		TaskActionChan: make(chan TaskAction),
 	}
 
-	process.Machine = NewProcessMachine(process)
+	process.Machine = NewProcessMachine(&process)
 
 	go process.Monitor()
 
@@ -53,43 +54,73 @@ func (process *Process) Monitor() {
 				process.Machine.Send(ProcessEventStart)
 			case ProcessTaskActionStop:
 				process.Machine.Send(ProcessEventStop)
+			case ProcessTaskActionKill:
+				process.Cmd.Process.Signal(syscall.SIGKILL)
 			}
 		}
 	}
 }
 
-func (process *Process) Start() {
-	process.TaskActionChan <- ProcessTaskActionStart
+func (process *Process) Start() error {
+	select {
+	case process.TaskActionChan <- ProcessTaskActionStart:
+		return nil
+	case <-process.Context.Done():
+		return ErrChannelClosed
+	}
 }
 
-func (process *Process) Stop() {
-	process.TaskActionChan <- ProcessTaskActionStart
+func (process *Process) Stop() error {
+	select {
+	case process.TaskActionChan <- ProcessTaskActionStop:
+		return nil
+	case <-process.Context.Done():
+		return ErrChannelClosed
+	}
 }
 
-func (process *Process) Restart() {
-	process.Start()
-	process.Stop()
+func (process *Process) Restart() error {
+	if err := process.Start(); err != nil {
+		return err
+	}
+	if err := process.Stop(); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (process *Process) Kill() {
-	process.TaskActionChan <- ProcessTaskActionKill
+func (process *Process) Kill() error {
+	select {
+	case process.TaskActionChan <- ProcessTaskActionKill:
+		return nil
+	case <-process.Context.Done():
+		return ErrChannelClosed
+	}
 }
 
-func (process *Process) GetConfig() ProgramConfiguration {
+func (process *Process) GetConfig() (ProgramConfiguration, error) {
 	responseChan := make(chan interface{})
 
-	process.ProgramTaskChan <- ProgramTaskWithResponse{
-		ProgramTask: ProgramTask{
+	select {
+	case process.ProgramTaskChan <- ProgramTaskRootActionWithResponse{
+		ProgramTaskRootAction: ProgramTaskRootAction{
 			TaskBase: TaskBase{
-				ProgramTaskActionGetConfig,
+				Action: ProgramTaskActionGetConfig,
 			},
 		},
 
 		ResponseChan: responseChan,
+	}:
+	case <-process.Context.Done():
+		return ProgramConfiguration{}, ErrChannelClosed
 	}
 
-	res := <-responseChan
-	config := res.(ProgramConfiguration)
+	select {
+	case res := <-responseChan:
+		config := res.(ProgramConfiguration)
 
-	return config
+		return config, nil
+	case <-process.Context.Done():
+		return ProgramConfiguration{}, ErrChannelClosed
+	}
 }

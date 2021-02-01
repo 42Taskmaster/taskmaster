@@ -87,7 +87,6 @@ func (taskmasterd *Taskmasterd) SetUmask(umask string) {
 	taskmasterd.UmaskLock.Lock()
 	defer taskmasterd.UmaskLock.Unlock()
 
-	log.Print("Setting umask: ", umask)
 	octal, err := strconv.ParseInt(umask, 8, 64)
 	if err != nil {
 		log.Panic(err)

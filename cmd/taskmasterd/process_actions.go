@@ -16,12 +16,15 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		process        = processContext.Process
 	)
 
-	config := process.GetConfig()
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
 
 	expandedCommand := os.ExpandEnv(config.Cmd)
 	parsedCommand, err := parser.ParseCommand(expandedCommand)
 	if err != nil {
-		return "", err
+		return ProcessEventFatal, err
 	}
 
 	cmd := exec.CommandContext(
@@ -29,10 +32,22 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		parsedCommand.Cmd,
 		parsedCommand.Args...,
 	)
-	cmd.Env = process.Program.Cache.Env
+
+	cmd.Env = config.CreateCmdEnvironment()
 	cmd.Stdin = nil
-	cmd.Stdout = process.Program.Cache.Stdout
-	cmd.Stderr = process.Program.Cache.Stderr
+
+	stdout, err := config.CreateCmdStdout()
+	if err != nil {
+		return ProcessEventFatal, nil
+	}
+	cmd.Stdout = stdout
+
+	stderr, err := config.CreateCmdStderr()
+	if err != nil {
+		return ProcessEventFatal, nil
+	}
+	cmd.Stderr = stderr
+
 	cmd.Dir = config.Workingdir
 
 	process.Cmd = cmd
@@ -40,7 +55,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 	// TODO: set umask
 	if err := process.Cmd.Start(); err != nil {
 		// reset umask
-
+		log.Print(err.Error())
 		return ProcessEventFatal, &ErrProcessAction{
 			ID: process.ID,
 			Err: &ErrProcessStarting{
@@ -86,9 +101,12 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 		process        = processContext.Process
 	)
 
-	config := process.GetConfig()
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
 
-	err := process.Cmd.Process.Signal(config.Stopsignal.ToOsSignal())
+	err = process.Cmd.Process.Signal(config.Stopsignal.ToOsSignal())
 	if err != nil {
 		return machine.NoopEvent, &ErrProcessAction{
 			ID:  processContext.Process.ID,
@@ -111,7 +129,10 @@ func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 	processContext := context.(*ProcessMachineContext)
 	process := processContext.Process
 
-	config := process.GetConfig()
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
 
 	switch config.Autorestart {
 	case AutorestartOn:

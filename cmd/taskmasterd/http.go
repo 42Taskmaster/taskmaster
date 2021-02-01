@@ -12,7 +12,7 @@ import (
 )
 
 type HttpHandleFunc func(http.ResponseWriter, *http.Request)
-type HttpEndpointFunc func(programManager *ProgramManager, w http.ResponseWriter, r *http.Request)
+type HttpEndpointFunc func(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request)
 
 var httpEndpoints = map[string]HttpEndpointFunc{
 	"/status":        httpEndpointStatus,
@@ -30,8 +30,8 @@ type HttpJSONResponse struct {
 }
 
 type HttpProgramState struct {
-	ProgramName  string             `json:"program_name"`
-	ProgramState machine.StateType  `json:"program_state"`
+	ProgramID    string             `json:"program_id"`
+	ProgramState ProgramState       `json:"program_state"`
 	Processes    []HttpProcessState `json:"processes"`
 }
 
@@ -40,24 +40,34 @@ type HttpProcessState struct {
 	State machine.StateType `json:"state"`
 }
 
-func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		httpJSONResponse := HttpJSONResponse{}
 
-		for _, program := range programManager.GetSortedPrograms() {
-			httpProgramStatus := HttpProgramState{
-				ProgramName:  program.Config.Name,
-				ProgramState: program.GetState(),
-			}
-			for _, process := range program.GetSortedProcesses() {
-				httpProcessState := HttpProcessState{
-					Id:    process.ID,
-					State: process.Machine.Current(),
+		programs, err := taskmasterd.GetSortedPrograms()
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		} else {
+			for _, program := range programs {
+				processes, err := program.GetSortedProcesses()
+				if err != nil {
+					httpJSONResponse.Error = err.Error()
+					break
 				}
-				httpProgramStatus.Processes = append(httpProgramStatus.Processes, httpProcessState)
+				httpProgramStatus := HttpProgramState{
+					ProgramID:    program.configuration.Name,
+					ProgramState: GetProgramState(processes),
+				}
+				for _, process := range processes {
+					httpProcessState := HttpProcessState{
+						Id:    process.ID,
+						State: process.Machine.Current(),
+					}
+					httpProgramStatus.Processes = append(httpProgramStatus.Processes, httpProcessState)
+				}
+				httpJSONResponse.Result = append(httpJSONResponse.Result, httpProgramStatus)
 			}
-			httpJSONResponse.Result = append(httpJSONResponse.Result, httpProgramStatus)
 		}
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
@@ -70,11 +80,10 @@ func httpEndpointStatus(programManager *ProgramManager, w http.ResponseWriter, r
 }
 
 type HttpProgramNameInputJSON struct {
-	ProgramName string `json:"program_name"`
+	ProgramID string `json:"program_id"`
 }
 
-func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
-	// {"program_name":""}
+func httpEndpointStart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		var (
@@ -88,11 +97,13 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 			return
 		}
 
-		programName := input.ProgramName
-		err := programManager.StartProgramByName(programName)
+		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
+		} else {
+			program.Start()
 		}
+
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)
@@ -103,7 +114,7 @@ func httpEndpointStart(programManager *ProgramManager, w http.ResponseWriter, r 
 	}
 }
 
-func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpEndpointStop(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		var (
@@ -117,11 +128,13 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 			return
 		}
 
-		programName := input.ProgramName
-		err := programManager.StopProgramByName(programName)
+		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
+		} else {
+			program.Stop()
 		}
+
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)
@@ -132,7 +145,7 @@ func httpEndpointStop(programManager *ProgramManager, w http.ResponseWriter, r *
 	}
 }
 
-func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpEndpointRestart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		var (
@@ -146,11 +159,13 @@ func httpEndpointRestart(programManager *ProgramManager, w http.ResponseWriter, 
 			return
 		}
 
-		programName := input.ProgramName
-		err := programManager.RestartProgramByName((programName))
+		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
+		} else {
+			program.Restart()
 		}
+
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)
@@ -165,7 +180,7 @@ type HttpConfigurationEndpointInputJSON struct {
 	ConfigurationData string `json:"file"`
 }
 
-func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		fmt.Fprint(w, "get start")
@@ -184,7 +199,7 @@ func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWr
 		reader := strings.NewReader(input.ConfigurationData)
 
 		programsConfigurations, err := configParse(reader)
-		programManager.LoadConfiguration(programsConfigurations)
+		taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		}
@@ -198,7 +213,7 @@ func httpEndpointConfiguration(programManager *ProgramManager, w http.ResponseWr
 	}
 }
 
-func httpEndpointShutdown(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpEndpointShutdown(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
 		fmt.Fprint(w, "shutdown")
@@ -207,20 +222,20 @@ func httpEndpointShutdown(programManager *ProgramManager, w http.ResponseWriter,
 	}
 }
 
-func httpNotFound(programManager *ProgramManager, w http.ResponseWriter, r *http.Request) {
+func httpNotFound(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func httpHandleEndpoint(programManager *ProgramManager, callback HttpEndpointFunc) HttpHandleFunc {
+func httpHandleEndpoint(taskmasterd *Taskmasterd, callback HttpEndpointFunc) HttpHandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.RemoteAddr, r.Method, r.RequestURI)
-		callback(programManager, w, r)
+		callback(taskmasterd, w, r)
 	}
 }
 
-func httpSetup(programManager *ProgramManager) {
+func httpSetup(taskmasterd *Taskmasterd) {
 	for uri, callback := range httpEndpoints {
-		http.HandleFunc(uri, httpHandleEndpoint(programManager, callback))
+		http.HandleFunc(uri, httpHandleEndpoint(taskmasterd, callback))
 	}
 }
 

@@ -28,8 +28,8 @@ type ProcessMachineContext struct {
 	Starttries int
 }
 
-func NewProcessMachine(process *Process) machine.Machine {
-	machine := machine.Machine{
+func NewProcessMachine(process *Process) *machine.Machine {
+	machine := &machine.Machine{
 		Context: &ProcessMachineContext{
 			Process:    process,
 			Starttries: 0,
