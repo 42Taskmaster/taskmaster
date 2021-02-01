@@ -24,7 +24,7 @@ type Program struct {
 
 	Context context.Context
 
-	processes     map[string]Process
+	processes     map[string]*Process
 	configuration ProgramConfiguration
 
 	Valid bool
@@ -54,7 +54,7 @@ func NewProgram(args NewProgramArgs) Program {
 
 		Context: args.Context,
 
-		processes:     make(map[string]Process),
+		processes:     make(map[string]*Process),
 		configuration: args.Configuration,
 
 		Valid: true,
@@ -83,14 +83,24 @@ func (program *Program) getProcessByID(id string) (Process, error) {
 		}
 	}
 
-	return process, nil
+	return *process, nil
+}
+
+func copyProcessMap(processes map[string]*Process) map[string]Process {
+	processesCopy := make(map[string]Process)
+
+	for processID, process := range processes {
+		processesCopy[processID] = *process
+	}
+
+	return processesCopy
 }
 
 func (program *Program) getProcesses(task Tasker) error {
 	programTaskWithResponse := task.(ProgramTaskRootActionWithResponse)
 
 	select {
-	case programTaskWithResponse.ResponseChan <- program.processes:
+	case programTaskWithResponse.ResponseChan <- copyProcessMap(program.processes):
 	case <-program.Context.Done():
 		return ErrChannelClosed
 	}
@@ -174,19 +184,18 @@ func (program *Program) setConfig(task Tasker) error {
 	programTaskWithPayload := task.(ProgramTaskRootActionWithPayload)
 
 	newConfig := programTaskWithPayload.Payload.(ProgramConfiguration)
+
 	program.configuration = newConfig
 
-	numProcesses := len(program.processes)
-	if numProcesses > program.configuration.Numprocs {
-		for index := numProcesses; index > program.configuration.Numprocs; index-- {
+	oldNumProcess := len(program.processes)
+	newNumProcesses := newConfig.Numprocs
+	delta := newNumProcesses - oldNumProcess
+
+	if delta < 0 {
+		for index := newNumProcesses + 1; index <= oldNumProcess; index++ {
 			processID := strconv.Itoa(index)
 
 			process, err := program.getProcessByID(processID)
-			if err != nil {
-				return err
-			}
-
-			err = process.Stop()
 			if err != nil {
 				return err
 			}
@@ -204,17 +213,22 @@ func (program *Program) setConfig(task Tasker) error {
 					ProcessID: process.ID,
 				}
 			}()
+
+			err = process.Stop()
+			if err != nil {
+				return err
+			}
 		}
-	} else if numProcesses < program.configuration.Numprocs {
-		for index := numProcesses; index <= program.configuration.Numprocs; index++ {
-			id := strconv.Itoa(index)
+	} else if delta > 0 {
+		for index := oldNumProcess + 1; index <= newNumProcesses; index++ {
+			processID := strconv.Itoa(index)
 
 			process := NewProcess(NewProcessArgs{
-				ID:              id,
+				ID:              processID,
 				Context:         program.Context,
 				ProgramTaskChan: program.ProcessTaskChan,
 			})
-			program.processes[id] = process
+			program.processes[processID] = process
 
 			if program.configuration.Autostart {
 				err := process.Start()
@@ -224,6 +238,8 @@ func (program *Program) setConfig(task Tasker) error {
 			}
 		}
 	}
+
+	// TODO: reload the configuration of all the others processes if necessary
 
 	return nil
 }

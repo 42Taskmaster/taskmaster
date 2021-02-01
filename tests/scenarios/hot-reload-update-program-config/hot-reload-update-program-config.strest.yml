@@ -35,7 +35,7 @@ requests:
           file: >-
             programs:
               dev-zero:
-                cmd: "cat /dev/zero"
+                cmd: "sleep 120"
                 numprocs: 3
                 autostart: true
                 starttime: 1
@@ -70,7 +70,7 @@ requests:
           file: >-
             programs:
               dev-zero:
-                cmd: "cat /dev/zero"
+                cmd: "sleep 120"
                 numprocs: 2
                 autostart: true
                 starttime: 1

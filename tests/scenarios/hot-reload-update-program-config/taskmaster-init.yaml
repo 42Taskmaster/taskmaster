@@ -1,6 +1,6 @@
 programs:
   dev-zero:
-    cmd: "cat /dev/zero"
+    cmd: "sleep 120"
     numprocs: 1
     autostart: false
     starttime: 1

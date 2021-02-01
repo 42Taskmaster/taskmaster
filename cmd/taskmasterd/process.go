@@ -27,8 +27,8 @@ type NewProcessArgs struct {
 	ProgramTaskChan chan<- Tasker
 }
 
-func NewProcess(args NewProcessArgs) Process {
-	process := Process{
+func NewProcess(args NewProcessArgs) *Process {
+	process := &Process{
 		ID:              args.ID,
 		Context:         args.Context,
 		ProgramTaskChan: args.ProgramTaskChan,
@@ -36,7 +36,7 @@ func NewProcess(args NewProcessArgs) Process {
 		TaskActionChan: make(chan TaskAction),
 	}
 
-	process.Machine = NewProcessMachine(&process)
+	process.Machine = NewProcessMachine(process)
 
 	go process.Monitor()
 

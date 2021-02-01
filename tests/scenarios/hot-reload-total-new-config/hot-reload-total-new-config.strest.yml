@@ -33,7 +33,7 @@ requests:
           file: >-
             programs:
               dev-random:
-                cmd: "cat /dev/random"
+                cmd: "sleep 360"
                 numprocs: 1
                 autostart: true
                 starttime: 1
