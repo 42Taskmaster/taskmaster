@@ -5,14 +5,11 @@ import (
 	"errors"
 	"log"
 	"sort"
-	"sync"
 )
 
 type Taskmasterd struct {
 	Args Args
 
-	Umask           int
-	UmaskLock       sync.Mutex
 	ProgramTaskChan chan Tasker
 
 	Context context.Context
@@ -24,7 +21,6 @@ func NewTaskmasterd(args Args) *Taskmasterd {
 
 	taskmasterd := &Taskmasterd{
 		Args:            args,
-		Umask:           -1,
 		Context:         context,
 		Cancel:          cancel,
 		ProgramTaskChan: make(chan Tasker),
