@@ -27,6 +27,8 @@ func SetUmask(umask string) {
 }
 
 func ResetUmask() {
+	UmaskLock.Lock()
+	defer UmaskLock.Unlock()
 	if Umask != -1 {
 		syscall.Umask(Umask)
 	}
