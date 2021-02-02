@@ -41,7 +41,7 @@ func main() {
 	lockFileCreate()
 	defer lockFileRemove()
 
-	taskmasterd := NewTaskmasterd()
+	taskmasterd := NewTaskmasterd(args)
 	taskmasterd.SignalsSetup()
 	taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 

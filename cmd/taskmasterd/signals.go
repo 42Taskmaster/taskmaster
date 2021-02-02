@@ -87,14 +87,14 @@ func (taskmasterd *Taskmasterd) SignalSighupSetup() {
 		for {
 			<-sigs
 			log.Print("SIGHUP received, reloading configuration file")
-			configReader, err := configGetFileReader(configPathArg)
+			configReader, err := configGetFileReader(taskmasterd.Args.ConfigPathArg)
 			if err != nil {
 				log.Panic(err)
 			}
 
 			programsConfigurations, err := configParse(configReader)
 			if err != nil {
-				log.Printf("Error parsing configuration file: %s: %v\n", configPathArg, err)
+				log.Printf("Error parsing configuration file: %s: %v\n", taskmasterd.Args.ConfigPathArg, err)
 			} else {
 				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 			}

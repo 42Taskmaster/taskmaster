@@ -8,6 +8,8 @@ import (
 )
 
 type Taskmasterd struct {
+	Args Args
+
 	Umask           int
 	UmaskLock       sync.Mutex
 	ProgramTaskChan chan Tasker
@@ -16,10 +18,11 @@ type Taskmasterd struct {
 	Cancel  context.CancelFunc
 }
 
-func NewTaskmasterd() *Taskmasterd {
+func NewTaskmasterd(args Args) *Taskmasterd {
 	context, cancel := context.WithCancel(context.Background())
 
 	taskmasterd := &Taskmasterd{
+		Args:            args,
 		Umask:           -1,
 		Context:         context,
 		Cancel:          cancel,
