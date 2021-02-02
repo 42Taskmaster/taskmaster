@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-func rootCheck(args Args) {
-	if os.Geteuid() == 0 && !args.BypassRootArg {
+func rootCheck(bypass bool) {
+	if os.Geteuid() == 0 && !bypass {
 		log.Print("Taskmasterd should not be launched as root. Please use a non-root user.")
 		log.Print("Use -r argument to launch as root anyway.")
 		os.Exit(1)
@@ -19,7 +19,7 @@ func main() {
 
 	logLogo()
 
-	rootCheck(args)
+	rootCheck(args.BypassRootArg)
 
 	configReader, err := configGetFileReader(args.ConfigPathArg)
 	if err != nil {
@@ -46,5 +46,5 @@ func main() {
 	taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
 	httpSetup(taskmasterd)
-	httpListenAndServe(args)
+	httpListenAndServe(args.PortArg)
 }
