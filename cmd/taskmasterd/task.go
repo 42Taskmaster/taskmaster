@@ -14,18 +14,19 @@ const (
 	TaskmasterdTaskActionAdd    TaskAction = "TASKMASTERD_ADD"
 	TaskmasterdTaskActionRemove TaskAction = "TASKMASTERD_REMOVE"
 
-	ProgramTaskActionGet        TaskAction = "PROGRAM_GET"
-	ProgramTaskActionGetAll     TaskAction = "PROGRAM_GET_ALL"
-	ProgramTaskActionStart      TaskAction = "PROGRAM_START"
-	ProgramTaskActionStartAll   TaskAction = "PROGRAM_START_ALL"
-	ProgramTaskActionStop       TaskAction = "PROGRAM_STOP"
-	ProgramTaskActionStopAll    TaskAction = "PROGRAM_STOP_ALL"
-	ProgramTaskActionKill       TaskAction = "PROGRAM_KILL"
-	ProgramTaskActionRestart    TaskAction = "PROGRAM_RESTART"
-	ProgramTaskActionRestartAll TaskAction = "PROGRAM_RESTART_ALL"
-	ProgramTaskActionRemove     TaskAction = "PROGRAM_REMOVE"
-	ProgramTaskActionSetConfig  TaskAction = "PROGRAM_SET_CONFIG"
-	ProgramTaskActionGetConfig  TaskAction = "PROGRAM_GET_CONFIG"
+	ProgramTaskActionGet            TaskAction = "PROGRAM_GET"
+	ProgramTaskActionGetAll         TaskAction = "PROGRAM_GET_ALL"
+	ProgramTaskActionStart          TaskAction = "PROGRAM_START"
+	ProgramTaskActionStartAll       TaskAction = "PROGRAM_START_ALL"
+	ProgramTaskActionStop           TaskAction = "PROGRAM_STOP"
+	ProgramTaskActionStopAll        TaskAction = "PROGRAM_STOP_ALL"
+	ProgramTaskActionStopAllAndWait TaskAction = "PROGRAM_STOP_ALL_AND_WAIT"
+	ProgramTaskActionKill           TaskAction = "PROGRAM_KILL"
+	ProgramTaskActionRestart        TaskAction = "PROGRAM_RESTART"
+	ProgramTaskActionRestartAll     TaskAction = "PROGRAM_RESTART_ALL"
+	ProgramTaskActionRemove         TaskAction = "PROGRAM_REMOVE"
+	ProgramTaskActionSetConfig      TaskAction = "PROGRAM_SET_CONFIG"
+	ProgramTaskActionGetConfig      TaskAction = "PROGRAM_GET_CONFIG"
 
 	ProcessTaskActionGet     TaskAction = "PROCESS_GET"
 	ProcessTaskActionStart   TaskAction = "PROCESS_START"
@@ -100,7 +101,7 @@ type ProgramTaskRootActionWithPayload struct {
 	Payload interface{}
 }
 
-type ProcessTaskWithReponse struct {
+type ProcessTaskWithResponse struct {
 	ProcessTask
 
 	ResponseChan chan interface{}

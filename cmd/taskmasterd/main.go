@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 )
@@ -41,10 +42,19 @@ func main() {
 	lockFileCreate()
 	defer lockFileRemove()
 
-	taskmasterd := NewTaskmasterd(args)
+	context, cancel := context.WithCancel(context.Background())
+
+	taskmasterd := NewTaskmasterd(NewTaskmasterdArgs{
+		Args:    args,
+		Context: context,
+		Cancel:  cancel,
+	})
 	taskmasterd.SignalsSetup()
 	go taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
 	httpSetup(taskmasterd)
-	httpListenAndServe(args.PortArg)
+	<-httpListenAndServe(context, args.PortArg)
+	<-taskmasterd.Closed
+
+	log.Println("Exited gracefully, bye!")
 }
