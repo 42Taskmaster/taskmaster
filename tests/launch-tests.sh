@@ -10,11 +10,12 @@ setUp() {
 tearDown() {
     echo $PWD
     pkill taskmasterd
-    rm -f taskmasterd.lock
+    rm -f taskmasterd.lock AUTO
 }
 
 testInfinite() {
     cd infinite
+    rm -f taskmasterd.log
 
     ./test.sh
 
@@ -23,6 +24,7 @@ testInfinite() {
 
 testHotReloadTotalNewConfig() {
     cd hot-reload-total-new-config
+    rm -f taskmasterd.log
 
     ./test.sh
 
@@ -31,6 +33,7 @@ testHotReloadTotalNewConfig() {
 
 testHotReloadUpdateProgramConfig() {
     cd hot-reload-update-program-config
+    rm -f taskmasterd.log
 
     ./test.sh
 

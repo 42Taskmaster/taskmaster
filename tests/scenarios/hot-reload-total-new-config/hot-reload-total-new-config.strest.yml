@@ -6,7 +6,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          program_name: dev-zero
+          program_id: dev-zero
     validate:
       - jsonpath: status
         expect: 200
@@ -17,7 +17,7 @@ requests:
     delay: 1000
     maxRetries: 2
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: dev-zero
       - jsonpath: content.result[0].program_state
         expect: RUNNING
@@ -33,7 +33,7 @@ requests:
           file: >-
             programs:
               dev-random:
-                cmd: "cat /dev/random"
+                cmd: "sleep 360"
                 numprocs: 1
                 autostart: true
                 starttime: 1
@@ -46,7 +46,7 @@ requests:
     validate:
       - jsonpath: content.result.length
         expect: 1
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: dev-random
       - jsonpath: content.result[0].program_state
         expect: RUNNING

@@ -6,7 +6,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          program_name: infinite
+          program_id: infinite
     validate:
       - jsonpath: status
         expect: 200
@@ -17,7 +17,7 @@ requests:
     delay: 1000
     maxRetries: 2
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: infinite
       - jsonpath: content.result[0].program_state
         expect: RUNNING
@@ -30,7 +30,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          program_name: infinite
+          program_id: infinite
     validate:
       - jsonpath: status
         expect: 200
@@ -39,7 +39,7 @@ requests:
       url: http://localhost:8080/status
       method: GET
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: infinite
       - jsonpath: content.result[0].program_state
         expect: STOPPING
@@ -51,7 +51,7 @@ requests:
       method: GET
     delay: 2000
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: infinite
       - jsonpath: content.result[0].program_state
         expect: STOPPING
@@ -63,7 +63,7 @@ requests:
       method: GET
     delay: 3000
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: infinite
       - jsonpath: content.result[0].program_state
         expect: STOPPING
@@ -75,7 +75,7 @@ requests:
       method: GET
     delay: 6000
     validate:
-      - jsonpath: content.result[0].program_name
+      - jsonpath: content.result[0].program_id
         expect: infinite
       - jsonpath: content.result[0].program_state
         expect: STOPPED

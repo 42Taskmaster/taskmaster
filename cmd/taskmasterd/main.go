@@ -12,7 +12,8 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	programsConfiguration, err := configParse(configReader)
+
+	programsConfigurations, err := configParse(configReader)
 	if err != nil {
 		log.Fatalf("Error parsing configuration file: %s: %v\n", configPathArg, err)
 		os.Exit(1)
@@ -30,12 +31,8 @@ func main() {
 
 	taskmasterd := NewTaskmasterd()
 	taskmasterd.SignalsSetup()
+	taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
-	programManager := NewProgramManager(taskmasterd)
-	programManager.LoadConfiguration(programsConfiguration)
-
-	taskmasterd.ProgramManager = programManager
-
-	httpSetup(programManager)
+	httpSetup(taskmasterd)
 	httpListenAndServe()
 }

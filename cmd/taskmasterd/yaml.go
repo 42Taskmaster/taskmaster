@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"os"
 
 	"gopkg.in/yaml.v2"
 )
@@ -38,14 +39,14 @@ func (err *ErrProgramsYamlValidation) Error() string {
 	return "validation error for field " + err.Field + " : " + string(err.Issue)
 }
 
-type ProgramsConfiguration map[string]ProgramConfig
+type ProgramsConfigurations map[string]ProgramConfiguration
 
 type ProgramsYaml struct {
 	Programs map[string]ProgramYaml `yaml:"programs,omitempty"`
 }
 
-func (programs *ProgramsYaml) Validate() (ProgramsConfiguration, error) {
-	programsConfiguration := make(ProgramsConfiguration)
+func (programs *ProgramsYaml) Validate() (ProgramsConfigurations, error) {
+	programsConfigurations := make(ProgramsConfigurations)
 
 	if programs.Programs == nil {
 		return nil, &ErrProgramsYamlValidation{
@@ -58,7 +59,7 @@ func (programs *ProgramsYaml) Validate() (ProgramsConfiguration, error) {
 		err, parsedConfiguration := programConfiguration.Validate()
 		if err == nil {
 			parsedConfiguration.Name = programName
-			programsConfiguration[programName] = parsedConfiguration
+			programsConfigurations[programName] = parsedConfiguration
 			continue
 		}
 
@@ -66,10 +67,10 @@ func (programs *ProgramsYaml) Validate() (ProgramsConfiguration, error) {
 		return nil, err
 	}
 
-	return programsConfiguration, nil
+	return programsConfigurations, nil
 }
 
-type ProgramConfig struct {
+type ProgramConfiguration struct {
 	Name         string
 	Cmd          string
 	Numprocs     int
@@ -85,6 +86,40 @@ type ProgramConfig struct {
 	Stdout       string
 	Stderr       string
 	Env          map[string]string
+}
+
+func (config *ProgramConfiguration) CreateCmdEnvironment() []string {
+	env := os.Environ()
+	for name, value := range config.Env {
+		concatenatedKeyValue := name + "=" + value
+
+		env = append(env, concatenatedKeyValue)
+	}
+	return env
+}
+
+func (config *ProgramConfiguration) CreateCmdStdout() (io.Writer, error) {
+	if len(config.Stdout) == 0 {
+		return nil, nil
+	}
+
+	file, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func (config *ProgramConfiguration) CreateCmdStderr() (io.Writer, error) {
+	if len(config.Stderr) == 0 {
+		return nil, nil
+	}
+
+	file, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
 type ProgramYaml struct {
@@ -120,10 +155,10 @@ func (program *ProgramYaml) NormalizedExitcodes() []int {
 	}
 }
 
-func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfig) {
+func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfiguration) {
 	const HourInSeconds = 60 * 60
 
-	config := ProgramConfig{
+	config := ProgramConfiguration{
 		Exitcodes: program.NormalizedExitcodes(),
 		Env:       program.Env,
 	}
