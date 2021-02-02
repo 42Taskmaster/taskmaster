@@ -94,7 +94,7 @@ func (taskmasterd *Taskmasterd) SignalSighupSetup() {
 
 			programsConfigurations, err := configParse(configReader)
 			if err != nil {
-				log.Print("Error parsing configuration file: %s: %v\n", configPathArg, err)
+				log.Printf("Error parsing configuration file: %s: %v\n", configPathArg, err)
 			} else {
 				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 			}
