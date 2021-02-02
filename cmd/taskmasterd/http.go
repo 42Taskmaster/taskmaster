@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -216,7 +218,7 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 func httpEndpointShutdown(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
-		fmt.Fprint(w, "shutdown")
+		taskmasterd.Quit()
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -239,7 +241,26 @@ func httpSetup(taskmasterd *Taskmasterd) {
 	}
 }
 
-func httpListenAndServe(port int) {
+func httpListenAndServe(ctx context.Context, port int) chan struct{} {
+	server := http.Server{
+		Addr: ":" + strconv.Itoa(port),
+	}
+	idleConnectionsClosed := make(chan struct{})
+
+	go func() {
+		<-ctx.Done()
+
+		if err := server.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+
+		close(idleConnectionsClosed)
+	}()
+
 	log.Printf("Launching HTTP REST API on port :%d", port)
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
+	}
+
+	return idleConnectionsClosed
 }

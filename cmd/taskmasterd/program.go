@@ -22,7 +22,10 @@ func (err *ErrProcessNotFound) Error() string {
 type Program struct {
 	ProcessTaskChan chan Tasker
 
-	Context context.Context
+	GlobalContext context.Context
+
+	LocalContext       context.Context
+	CancelLocalContext context.CancelFunc
 
 	processes     map[string]*Process
 	configuration ProgramConfiguration
@@ -49,10 +52,15 @@ type NewProgramArgs struct {
 }
 
 func NewProgram(args NewProgramArgs) Program {
+	localContext, localCancel := context.WithCancel(context.Background())
+
 	program := Program{
 		ProcessTaskChan: make(chan Tasker),
 
-		Context: args.Context,
+		GlobalContext: args.Context,
+
+		LocalContext:       localContext,
+		CancelLocalContext: localCancel,
 
 		processes:     make(map[string]*Process),
 		configuration: args.Configuration,
@@ -64,7 +72,7 @@ func NewProgram(args NewProgramArgs) Program {
 		id := strconv.Itoa(index)
 		process := NewProcess(NewProcessArgs{
 			ID:              id,
-			Context:         program.Context,
+			Context:         localContext,
 			ProgramTaskChan: program.ProcessTaskChan,
 		})
 		program.processes[id] = process
@@ -99,11 +107,7 @@ func copyProcessMap(processes map[string]*Process) map[string]Process {
 func (program *Program) getProcesses(task Tasker) error {
 	programTaskWithResponse := task.(ProgramTaskRootActionWithResponse)
 
-	select {
-	case programTaskWithResponse.ResponseChan <- copyProcessMap(program.processes):
-	case <-program.Context.Done():
-		return ErrChannelClosed
-	}
+	programTaskWithResponse.ResponseChan <- copyProcessMap(program.processes)
 
 	return nil
 }
@@ -175,6 +179,25 @@ func (program *Program) stopAllProcesses(task Tasker) error {
 	return nil
 }
 
+func (program *Program) stopAllProcessesAndWait(task Tasker) error {
+	go func() {
+		programTaskWithResponse := task.(ProgramTaskRootActionWithResponse)
+
+		for _, process := range program.processes {
+			process.Stop()
+		}
+
+		for _, process := range program.processes {
+			<-process.DeadCh
+		}
+
+		program.CancelLocalContext()
+		close(programTaskWithResponse.ResponseChan)
+	}()
+
+	return nil
+}
+
 func (program *Program) restartAllProcesses(task Tasker) error {
 	log.Printf("Restarting program '%s' with %d process(es)...", program.configuration.Name, program.configuration.Numprocs)
 	for _, process := range program.processes {
@@ -225,7 +248,7 @@ func (program *Program) setConfig(task Tasker) error {
 
 			process := NewProcess(NewProcessArgs{
 				ID:              processID,
-				Context:         program.Context,
+				Context:         program.LocalContext,
 				ProgramTaskChan: program.ProcessTaskChan,
 			})
 			program.processes[processID] = process
@@ -255,12 +278,7 @@ func (program *Program) getConfig(task Tasker) error {
 	programTaskWithResponse := task.(ProgramTaskRootActionWithResponse)
 
 	config := program.configuration
-
-	select {
-	case programTaskWithResponse.ResponseChan <- config:
-	case <-program.Context.Done():
-		return ErrChannelClosed
-	}
+	programTaskWithResponse.ResponseChan <- config
 
 	return nil
 }
@@ -272,8 +290,9 @@ func (program *Program) Monitor() {
 		ProgramTaskActionStart:    (*Program).startSingleProcess,
 		ProgramTaskActionStartAll: (*Program).startAllProcesses,
 
-		ProgramTaskActionStop:    (*Program).stopSingleProcess,
-		ProgramTaskActionStopAll: (*Program).stopAllProcesses,
+		ProgramTaskActionStop:           (*Program).stopSingleProcess,
+		ProgramTaskActionStopAll:        (*Program).stopAllProcesses,
+		ProgramTaskActionStopAllAndWait: (*Program).stopAllProcessesAndWait,
 
 		ProgramTaskActionRestart:    (*Program).restartSingleProcess,
 		ProgramTaskActionRestartAll: (*Program).restartAllProcesses,
@@ -288,7 +307,7 @@ func (program *Program) Monitor() {
 
 	for {
 		select {
-		case <-program.Context.Done():
+		case <-program.LocalContext.Done():
 			return
 
 		case task := <-program.ProcessTaskChan:
@@ -309,7 +328,7 @@ func (program *Program) Start() {
 			Action: ProgramTaskActionStartAll,
 		},
 	}:
-	case <-program.Context.Done():
+	case <-program.GlobalContext.Done():
 	}
 }
 
@@ -320,8 +339,24 @@ func (program *Program) Stop() {
 			Action: ProgramTaskActionStopAll,
 		},
 	}:
-	case <-program.Context.Done():
+	case <-program.GlobalContext.Done():
 	}
+}
+
+func (program *Program) StopAndWait() chan interface{} {
+	processesExited := make(chan interface{})
+
+	program.ProcessTaskChan <- ProgramTaskRootActionWithResponse{
+		ProgramTaskRootAction: ProgramTaskRootAction{
+			TaskBase: TaskBase{
+				Action: ProgramTaskActionStopAllAndWait,
+			},
+		},
+
+		ResponseChan: processesExited,
+	}
+
+	return processesExited
 }
 
 func (program *Program) Restart() {
@@ -331,15 +366,14 @@ func (program *Program) Restart() {
 			Action: ProgramTaskActionRestart,
 		},
 	}:
-	case <-program.Context.Done():
+	case <-program.GlobalContext.Done():
 	}
 }
 
 func (program *Program) GetProcesses() (map[string]Process, error) {
 	responseChan := make(chan interface{})
 
-	select {
-	case program.ProcessTaskChan <- ProgramTaskRootActionWithResponse{
+	program.ProcessTaskChan <- ProgramTaskRootActionWithResponse{
 		ProgramTaskRootAction: ProgramTaskRootAction{
 			TaskBase: TaskBase{
 				Action: ProgramTaskActionGetAll,
@@ -347,18 +381,11 @@ func (program *Program) GetProcesses() (map[string]Process, error) {
 		},
 
 		ResponseChan: responseChan,
-	}:
-	case <-program.Context.Done():
-		return nil, ErrChannelClosed
 	}
 
-	select {
-	case resp := <-responseChan:
-		processes := resp.(map[string]Process)
-		return processes, nil
-	case <-program.Context.Done():
-		return nil, ErrChannelClosed
-	}
+	resp := <-responseChan
+	processes := resp.(map[string]Process)
+	return processes, nil
 }
 
 func (program *Program) GetSortedProcesses() ([]Process, error) {

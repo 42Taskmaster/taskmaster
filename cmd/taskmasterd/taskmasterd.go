@@ -7,6 +7,8 @@ import (
 	"sort"
 )
 
+var ErrProgramNotFound = errors.New("program not found")
+
 type Taskmasterd struct {
 	Args Args
 
@@ -14,17 +16,26 @@ type Taskmasterd struct {
 
 	Context context.Context
 	Cancel  context.CancelFunc
+
+	Closed chan struct{}
 }
 
-func NewTaskmasterd(args Args) *Taskmasterd {
-	context, cancel := context.WithCancel(context.Background())
+type NewTaskmasterdArgs struct {
+	Args    Args
+	Context context.Context
+	Cancel  context.CancelFunc
+}
 
+func NewTaskmasterd(args NewTaskmasterdArgs) *Taskmasterd {
 	taskmasterd := &Taskmasterd{
-		Args:            args,
-		Context:         context,
-		Cancel:          cancel,
+		Args:            args.Args,
+		Context:         args.Context,
+		Cancel:          args.Cancel,
 		ProgramTaskChan: make(chan Tasker),
+		Closed:          make(chan struct{}),
 	}
+
+	go taskmasterd.WaitDeath()
 
 	go taskmasterd.Monitor()
 
@@ -41,6 +52,38 @@ func copyProgramMap(programs map[string]Program) map[string]Program {
 	return programsCopy
 }
 
+func (taskmasterd *Taskmasterd) WaitDeath() {
+	<-taskmasterd.Context.Done()
+
+	programsClosed := make(chan struct{})
+
+	programs, err := taskmasterd.GetPrograms()
+	if err != nil {
+		log.Fatalf("fetching programs: %v\n", err)
+		return
+	}
+
+	go func() {
+		programsToWait := make([]chan interface{}, 0, len(programs))
+
+		for _, program := range programs {
+			doneCh := program.StopAndWait()
+
+			programsToWait = append(programsToWait, doneCh)
+		}
+
+		for _, doneCh := range programsToWait {
+			<-doneCh
+		}
+
+		close(programsClosed)
+	}()
+
+	<-programsClosed
+
+	close(taskmasterd.Closed)
+}
+
 func (taskmasterd *Taskmasterd) Monitor() {
 	programs := make(map[string]Program)
 
@@ -55,17 +98,11 @@ func (taskmasterd *Taskmasterd) Monitor() {
 				break
 			}
 
-			select {
-			case taskmasterdTask.ResponseChan <- program:
-			case <-taskmasterd.Context.Done():
-			}
+			taskmasterdTask.ResponseChan <- program
 		case TaskmasterdTaskActionGetAll:
 			taskmasterdTask := task.(TaskmasterdTaskGetAll)
 
-			select {
-			case taskmasterdTask.ResponseChan <- copyProgramMap(programs):
-			case <-taskmasterd.Context.Done():
-			}
+			taskmasterdTask.ResponseChan <- copyProgramMap(programs)
 		case TaskmasterdTaskActionAdd:
 			taskmasterdTask := task.(TaskmasterdTaskAdd)
 
@@ -153,8 +190,6 @@ func (taskmasterd *Taskmasterd) LoadProgramsConfigurations(configs ProgramsConfi
 	return nil
 }
 
-var ErrProgramNotFound = errors.New("program not found")
-
 func (taskmasterd *Taskmasterd) GetProgramById(id string) (Program, error) {
 	responseChan := make(chan Program)
 
@@ -185,40 +220,31 @@ func (taskmasterd *Taskmasterd) GetProgramById(id string) (Program, error) {
 func (taskmasterd *Taskmasterd) GetPrograms() (map[string]Program, error) {
 	responseChan := make(chan map[string]Program)
 
-	select {
-	case taskmasterd.ProgramTaskChan <- TaskmasterdTaskGetAll{
+	taskmasterd.ProgramTaskChan <- TaskmasterdTaskGetAll{
 		TaskBase: TaskBase{
 			Action: TaskmasterdTaskActionGetAll,
 		},
 		ResponseChan: responseChan,
-	}:
-	case <-taskmasterd.Context.Done():
-		return nil, ErrChannelClosed
 	}
 
-	select {
-	case programs := <-responseChan:
-		return programs, nil
-	case <-taskmasterd.Context.Done():
-		return nil, ErrChannelClosed
-	}
+	programs := <-responseChan
+	return programs, nil
 }
 
 func (taskmasterd *Taskmasterd) GetSortedPrograms() ([]Program, error) {
-	ids := []string{}
-
 	programs, err := taskmasterd.GetPrograms()
 	if err != nil {
 		return nil, err
 	}
 
+	ids := make([]string, 0, len(programs))
 	for id := range programs {
 		ids = append(ids, id)
 	}
 
 	sort.Strings(ids)
 
-	sortedPrograms := []Program{}
+	sortedPrograms := make([]Program, 0, len(ids))
 	for _, id := range ids {
 		program, ok := programs[id]
 		if ok {
@@ -227,4 +253,8 @@ func (taskmasterd *Taskmasterd) GetSortedPrograms() ([]Program, error) {
 	}
 
 	return sortedPrograms, nil
+}
+
+func (taskmasterd *Taskmasterd) Quit() {
+	taskmasterd.Cancel()
 }
