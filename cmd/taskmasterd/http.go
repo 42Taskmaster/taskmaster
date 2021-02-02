@@ -239,7 +239,7 @@ func httpSetup(taskmasterd *Taskmasterd) {
 	}
 }
 
-func httpListenAndServe() {
-	log.Printf("Launching HTTP REST API on port :%d", portArg)
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(portArg), nil))
+func httpListenAndServe(port int) {
+	log.Printf("Launching HTTP REST API on port :%d", port)
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), nil))
 }
