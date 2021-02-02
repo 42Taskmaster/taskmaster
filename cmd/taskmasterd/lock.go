@@ -1,22 +1,24 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path"
 )
 
+func joinTempDir(file string) string {
+	tmpDir := os.TempDir()
+
+	return path.Join(tmpDir, file)
+}
+
 func getLockFilePath() string {
 	const lockFileName = "taskmasterd.lock"
 
-	tmpDir := os.TempDir()
-
-	return path.Join(tmpDir, lockFileName)
+	return joinTempDir(lockFileName)
 }
 
 func lockFileExists() bool {
 	lockFilePath := getLockFilePath()
-	log.Println("lock file path", lockFilePath)
 
 	_, err := os.Stat(lockFilePath)
 	if err == nil {
@@ -27,14 +29,12 @@ func lockFileExists() bool {
 
 func lockFileCreate() {
 	lockFilePath := getLockFilePath()
-	log.Println("lock file path", lockFilePath)
 
 	os.Create(lockFilePath)
 }
 
 func lockFileRemove() {
 	lockFilePath := getLockFilePath()
-	log.Println("lock file path", lockFilePath)
 
 	os.Remove(lockFilePath)
 }

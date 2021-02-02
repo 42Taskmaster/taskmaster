@@ -98,24 +98,34 @@ func (config *ProgramConfiguration) CreateCmdEnvironment() []string {
 	return env
 }
 
-func (config *ProgramConfiguration) CreateCmdStdout() (io.Writer, error) {
-	if len(config.Stdout) == 0 {
+func (config *ProgramConfiguration) CreateCmdStdout(processID string) (io.Writer, error) {
+	if len(config.Stdout) == 0 || config.Stdout == "NONE" {
 		return nil, nil
 	}
 
-	file, err := os.OpenFile(config.Stdout, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	path := config.Stdout
+	if config.Stdout == "AUTO" {
+		path = joinTempDir("taskmasterd-" + config.Name + "-" + processID + ".stdout")
+	}
+
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
 	return file, nil
 }
 
-func (config *ProgramConfiguration) CreateCmdStderr() (io.Writer, error) {
-	if len(config.Stderr) == 0 {
+func (config *ProgramConfiguration) CreateCmdStderr(processID string) (io.Writer, error) {
+	if len(config.Stderr) == 0 || config.Stderr == "NONE" {
 		return nil, nil
 	}
 
-	file, err := os.OpenFile(config.Stderr, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	path := config.Stderr
+	if config.Stderr == "AUTO" {
+		path = joinTempDir("taskmasterd-" + config.Name + "-" + processID + ".stderr")
+	}
+
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
