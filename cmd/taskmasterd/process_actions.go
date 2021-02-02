@@ -139,7 +139,7 @@ func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 	case AutorestartOn:
 		processContext.Starttries++
 		if processContext.Starttries == config.Startretries {
-			log.Printf("Process '%s' of program '%s' has exceeded start tries", process.ID, config.Name)
+			log.Printf("Fatal: could not start process '%s' of program '%s' (%d tries)", process.ID, config.Name, processContext.Starttries)
 			return ProcessEventFatal, nil
 		}
 		log.Printf("Trying to restart process '%s' of program '%s'...", process.ID, config.Name)
@@ -153,7 +153,7 @@ func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 		}
 		processContext.Starttries++
 		if processContext.Starttries == config.Startretries {
-			log.Printf("Process '%s' of program '%s' has exceeded start tries", process.ID, config.Name)
+			log.Printf("Fatal: could not start process '%s' of program '%s' (%d tries)", process.ID, config.Name, processContext.Starttries)
 			return ProcessEventFatal, nil
 		}
 		log.Printf("Trying to restart process '%s' of program '%s'...", process.ID, config.Name)
