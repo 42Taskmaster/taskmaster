@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"sort"
 	"sync"
 )
@@ -88,6 +89,7 @@ func (taskmasterd *Taskmasterd) Monitor() {
 }
 
 func (taskmasterd *Taskmasterd) LoadProgramConfiguration(config ProgramConfiguration) error {
+	log.Printf("Loading program '%s' configuration...", config.Name)
 	program, err := taskmasterd.GetProgramById(config.Name)
 	if err != nil {
 		program := NewProgram(NewProgramArgs{
@@ -122,6 +124,7 @@ func (taskmasterd *Taskmasterd) LoadProgramConfiguration(config ProgramConfigura
 }
 
 func (taskmasterd *Taskmasterd) LoadProgramsConfigurations(configs ProgramsConfigurations) error {
+	log.Printf("Loading %d program(s) configuration(s)...", len(configs))
 	programs, err := taskmasterd.GetPrograms()
 	if err != nil {
 		return err

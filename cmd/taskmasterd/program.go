@@ -160,6 +160,7 @@ func (program *Program) killSingleProcess(task Tasker) error {
 }
 
 func (program *Program) startAllProcesses(task Tasker) error {
+	log.Printf("Starting program '%s' with %d process(es)...", program.configuration.Name, program.configuration.Numprocs)
 	for _, process := range program.processes {
 		process.Start()
 	}
@@ -167,6 +168,7 @@ func (program *Program) startAllProcesses(task Tasker) error {
 }
 
 func (program *Program) stopAllProcesses(task Tasker) error {
+	log.Printf("Stopping program '%s' with %d process(es)...", program.configuration.Name, program.configuration.Numprocs)
 	for _, process := range program.processes {
 		process.Stop()
 	}
@@ -174,6 +176,7 @@ func (program *Program) stopAllProcesses(task Tasker) error {
 }
 
 func (program *Program) restartAllProcesses(task Tasker) error {
+	log.Printf("Restarting program '%s' with %d process(es)...", program.configuration.Name, program.configuration.Numprocs)
 	for _, process := range program.processes {
 		process.Restart()
 	}
@@ -201,10 +204,7 @@ func (program *Program) setConfig(task Tasker) error {
 			}
 
 			go func() {
-				log.Print("waiting for death")
 				<-process.DeadCh
-
-				log.Print("process died")
 
 				program.ProcessTaskChan <- ProcessTask{
 					TaskBase: TaskBase{

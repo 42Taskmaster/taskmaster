@@ -1,13 +1,12 @@
 programs:
   backoff:
-    cmd: "./tests/binaries/backoff/backoff"
+    cmd: "./tests/bin_backoff"
     numprocs: 1
     umask: 022
     workingdir: /tmp
     autostart: true
     autorestart: unexpected
     exitcodes:
-      - 0
       - 2
     startretries: 3
     starttime: 10
@@ -19,7 +18,7 @@ programs:
       STARTED_BY: taskmaster
       ANSWER: 42
   exited:
-    cmd: "./tests/binaries/exited/exited"
+    cmd: "./tests/bin_exited"
     numprocs: 1
     umask: 022
     workingdir: /tmp

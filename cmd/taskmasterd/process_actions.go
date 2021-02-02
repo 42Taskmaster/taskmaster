@@ -55,7 +55,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 	// TODO: set umask
 	if err := process.Cmd.Start(); err != nil {
 		// reset umask
-		log.Print(err.Error())
+		log.Printf("Error starting process '%s' of program '%s': %s", config.Name, process.ID, err.Error())
 		return ProcessEventFatal, &ErrProcessAction{
 			ID: process.ID,
 			Err: &ErrProcessStarting{
@@ -83,6 +83,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 
 		event := ProcessEventStopped
 		if process.Cmd.ProcessState.Exited() {
+			log.Printf("Process '%s' of program '%s' has exited with code %d", process.ID, config.Name, process.Cmd.ProcessState.ExitCode())
 			event = ProcessEventExit
 		}
 
@@ -138,8 +139,10 @@ func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 	case AutorestartOn:
 		processContext.Starttries++
 		if processContext.Starttries == config.Startretries {
+			log.Printf("Process '%s' of program '%s' has exceeded start tries", process.ID, config.Name)
 			return ProcessEventFatal, nil
 		}
+		log.Printf("Trying to restart process '%s' of program '%s'...", process.ID, config.Name)
 		return ProcessEventStart, nil
 	case AutorestartUnexpected:
 		exitcode := process.Cmd.ProcessState.ExitCode()
@@ -150,8 +153,10 @@ func ProcessBackoffAction(context machine.Context) (machine.EventType, error) {
 		}
 		processContext.Starttries++
 		if processContext.Starttries == config.Startretries {
+			log.Printf("Process '%s' of program '%s' has exceeded start tries", process.ID, config.Name)
 			return ProcessEventFatal, nil
 		}
+		log.Printf("Trying to restart process '%s' of program '%s'...", process.ID, config.Name)
 		return ProcessEventStart, nil
 	default:
 		return machine.NoopEvent, nil

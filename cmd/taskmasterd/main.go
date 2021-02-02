@@ -43,7 +43,7 @@ func main() {
 
 	taskmasterd := NewTaskmasterd(args)
 	taskmasterd.SignalsSetup()
-	taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+	go taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
 	httpSetup(taskmasterd)
 	httpListenAndServe(args.PortArg)
