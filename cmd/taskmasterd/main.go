@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-func rootCheck() {
-	if os.Geteuid() == 0 && !bypassRootArg {
+func rootCheck(args Args) {
+	if os.Geteuid() == 0 && !args.BypassRootArg {
 		log.Print("Taskmasterd should not be launched as root. Please use a non-root user.")
 		log.Print("Use -r argument to launch as root anyway.")
 		os.Exit(1)
@@ -14,24 +14,25 @@ func rootCheck() {
 }
 
 func main() {
-	argsParse()
+	var args Args
+	args.Parse()
 
 	logLogo()
 
-	rootCheck()
+	rootCheck(args)
 
-	configReader, err := configGetFileReader(configPathArg)
+	configReader, err := configGetFileReader(args.ConfigPathArg)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	programsConfigurations, err := configParse(configReader)
 	if err != nil {
-		log.Fatalf("Error parsing configuration file: %s: %v\n", configPathArg, err)
+		log.Fatalf("Error parsing configuration file: %s: %v\n", args.ConfigPathArg, err)
 		os.Exit(1)
 	}
 
-	daemonInit()
+	daemonInit(args)
 
 	// Daemon only code
 
@@ -45,5 +46,5 @@ func main() {
 	taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
 	httpSetup(taskmasterd)
-	httpListenAndServe()
+	httpListenAndServe(args)
 }

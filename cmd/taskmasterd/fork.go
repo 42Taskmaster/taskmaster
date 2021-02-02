@@ -6,8 +6,8 @@ import (
 	"syscall"
 )
 
-func fork() (int, error) {
-	logFile := logGetFile()
+func fork(args Args) (int, error) {
+	logFile := logGetFile(args)
 
 	forkArgs := []string{
 		"-d",

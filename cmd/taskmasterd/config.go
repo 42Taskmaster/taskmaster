@@ -9,7 +9,7 @@ import (
 const configDefaultPath = "./taskmaster.yaml"
 
 func configFileExists(path string) bool {
-	_, err := os.Stat(configPathArg)
+	_, err := os.Stat(path)
 	if err == nil {
 		return true
 	}
@@ -18,8 +18,8 @@ func configFileExists(path string) bool {
 
 func configCheckPath(path string) bool {
 	if !configFileExists(path) {
-		log.Printf("Could not find config file: %s", configPathArg)
-		if configPathArg == configDefaultPath {
+		log.Printf("Could not find config file: %s", path)
+		if path == configDefaultPath {
 			log.Print("Use -c option to specify your config file location")
 		}
 		return false
