@@ -52,10 +52,10 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 
 	process.Cmd = cmd
 
-	// TODO: set umask
+	SetUmask(config.Umask)
 	if err := process.Cmd.Start(); err != nil {
-		// reset umask
 		log.Printf("Error starting process '%s' of program '%s': %s", config.Name, process.ID, err.Error())
+		ResetUmask()
 		return ProcessEventFatal, &ErrProcessAction{
 			ID: process.ID,
 			Err: &ErrProcessStarting{
@@ -63,7 +63,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 			},
 		}
 	}
-	// TODO: reset umask
+	ResetUmask()
 
 	process.DeadCh = make(chan struct{})
 

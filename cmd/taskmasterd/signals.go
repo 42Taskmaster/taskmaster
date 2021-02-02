@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 )
 
@@ -100,26 +99,4 @@ func (taskmasterd *Taskmasterd) SignalSighupSetup() {
 			}
 		}
 	}()
-}
-
-func (taskmasterd *Taskmasterd) SetUmask(umask string) {
-	if len(umask) == 0 {
-		return
-	}
-
-	taskmasterd.UmaskLock.Lock()
-	defer taskmasterd.UmaskLock.Unlock()
-
-	octal, err := strconv.ParseInt(umask, 8, 64)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	taskmasterd.Umask = syscall.Umask(int(octal))
-}
-
-func (taskmasterd *Taskmasterd) ResetUmask() {
-	if taskmasterd.Umask != -1 {
-		syscall.Umask(taskmasterd.Umask)
-	}
 }
