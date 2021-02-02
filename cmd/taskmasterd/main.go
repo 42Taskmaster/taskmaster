@@ -5,8 +5,20 @@ import (
 	"os"
 )
 
+func rootCheck() {
+	if os.Geteuid() == 0 && !bypassRootArg {
+		log.Print("Taskmasterd should not be launched as root. Please use a non-root user.")
+		log.Print("Use -r argument to launch as root anyway.")
+		os.Exit(1)
+	}
+}
+
 func main() {
 	argsParse()
+
+	logLogo()
+
+	rootCheck()
 
 	configReader, err := configGetFileReader(configPathArg)
 	if err != nil {
@@ -23,7 +35,6 @@ func main() {
 
 	// Daemon only code
 
-	logLogo()
 	log.Printf("Started as daemon with PID %d", os.Getpid())
 
 	lockFileCreate()
