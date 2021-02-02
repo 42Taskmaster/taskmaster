@@ -67,6 +67,7 @@ func (signal StopSignal) ToOsSignal() os.Signal {
 }
 func (taskmasterd *Taskmasterd) SignalsSetup() {
 	taskmasterd.SignalsExitSetup()
+	taskmasterd.SignalSighupSetup()
 }
 
 func (taskmasterd *Taskmasterd) SignalsExitSetup() {
@@ -76,6 +77,28 @@ func (taskmasterd *Taskmasterd) SignalsExitSetup() {
 		<-sigs
 		lockFileRemove()
 		os.Exit(0)
+	}()
+}
+
+func (taskmasterd *Taskmasterd) SignalSighupSetup() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP)
+	go func() {
+		for {
+			<-sigs
+			log.Print("SIGHUP received, reloading configuration file")
+			configReader, err := configGetFileReader(configPathArg)
+			if err != nil {
+				log.Panic(err)
+			}
+
+			programsConfigurations, err := configParse(configReader)
+			if err != nil {
+				log.Printf("Error parsing configuration file: %s: %v\n", configPathArg, err)
+			} else {
+				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+			}
+		}
 	}()
 }
 
