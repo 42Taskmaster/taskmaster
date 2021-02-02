@@ -36,13 +36,13 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 	cmd.Env = config.CreateCmdEnvironment()
 	cmd.Stdin = nil
 
-	stdout, err := config.CreateCmdStdout()
+	stdout, err := config.CreateCmdStdout(process.ID)
 	if err != nil {
 		return ProcessEventFatal, nil
 	}
 	cmd.Stdout = stdout
 
-	stderr, err := config.CreateCmdStderr()
+	stderr, err := config.CreateCmdStderr(process.ID)
 	if err != nil {
 		return ProcessEventFatal, nil
 	}
