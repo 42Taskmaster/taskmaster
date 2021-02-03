@@ -65,21 +65,22 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 	}
 	ResetUmask()
 
-	process.DeadCh = make(chan struct{})
+	deadCh := make(chan struct{})
+	process.DeadCh = &deadCh
 
-	go func() {
+	go func(deadCh chan struct{}) {
 		select {
 		case <-time.After(time.Duration(config.Starttime) * time.Second):
 			process.Machine.Send(ProcessEventStarted)
-		case <-process.DeadCh:
+		case <-deadCh:
 			return
 		}
-	}()
+	}(*process.DeadCh)
 
-	go func() {
+	go func(deadCh chan struct{}) {
 		process.Cmd.Wait()
 
-		close(process.DeadCh)
+		close(deadCh)
 
 		event := ProcessEventStopped
 		if process.Cmd.ProcessState.Exited() {
@@ -91,7 +92,7 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		if err != nil {
 			log.Printf("expected no error to be returned but got %v\n", err)
 		}
-	}()
+	}(*process.DeadCh)
 
 	return machine.NoopEvent, nil
 }
@@ -119,7 +120,7 @@ func ProcessStopAction(context machine.Context) (machine.EventType, error) {
 		select {
 		case <-time.After(time.Duration(config.Stoptime) * time.Second):
 			process.Kill()
-		case <-process.DeadCh:
+		case <-*process.DeadCh:
 		}
 	}()
 

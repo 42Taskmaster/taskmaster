@@ -10,7 +10,7 @@ setUp() {
 tearDown() {
     echo $PWD
     pkill taskmasterd
-    rm -f taskmasterd.lock AUTO
+    rm -f taskmasterd.lock
 }
 
 testInfinite() {

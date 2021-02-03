@@ -27,7 +27,7 @@ type Program struct {
 	LocalContext       context.Context
 	CancelLocalContext context.CancelFunc
 
-	processes     map[string]*Process
+	processes     map[string]Process
 	configuration ProgramConfiguration
 
 	Valid bool
@@ -62,7 +62,7 @@ func NewProgram(args NewProgramArgs) Program {
 		LocalContext:       localContext,
 		CancelLocalContext: localCancel,
 
-		processes:     make(map[string]*Process),
+		processes:     make(map[string]Process),
 		configuration: args.Configuration,
 
 		Valid: true,
@@ -91,14 +91,14 @@ func (program *Program) getProcessByID(id string) (Process, error) {
 		}
 	}
 
-	return *process, nil
+	return process, nil
 }
 
-func copyProcessMap(processes map[string]*Process) map[string]Process {
+func copyProcessMap(processes map[string]Process) map[string]Process {
 	processesCopy := make(map[string]Process)
 
 	for processID, process := range processes {
-		processesCopy[processID] = *process
+		processesCopy[processID] = process
 	}
 
 	return processesCopy
@@ -188,7 +188,7 @@ func (program *Program) stopAllProcessesAndWait(task Tasker) error {
 		}
 
 		for _, process := range program.processes {
-			<-process.DeadCh
+			process.Wait()
 		}
 
 		program.CancelLocalContext()
@@ -227,7 +227,7 @@ func (program *Program) setConfig(task Tasker) error {
 			}
 
 			go func() {
-				<-process.DeadCh
+				process.Wait()
 
 				program.ProcessTaskChan <- ProcessTask{
 					TaskBase: TaskBase{
