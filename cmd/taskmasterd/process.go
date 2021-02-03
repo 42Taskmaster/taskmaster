@@ -18,7 +18,7 @@ type Process struct {
 	Cmd            *exec.Cmd
 	Machine        *machine.Machine
 
-	DeadCh chan struct{}
+	DeadCh *chan struct{}
 }
 
 type NewProcessArgs struct {
@@ -27,8 +27,8 @@ type NewProcessArgs struct {
 	ProgramTaskChan chan<- Tasker
 }
 
-func NewProcess(args NewProcessArgs) *Process {
-	process := &Process{
+func NewProcess(args NewProcessArgs) Process {
+	process := Process{
 		ID:              args.ID,
 		Context:         args.Context,
 		ProgramTaskChan: args.ProgramTaskChan,
@@ -36,7 +36,7 @@ func NewProcess(args NewProcessArgs) *Process {
 		TaskActionChan: make(chan TaskAction),
 	}
 
-	process.Machine = NewProcessMachine(process)
+	process.Machine = NewProcessMachine(&process)
 
 	go process.Monitor()
 
@@ -122,5 +122,11 @@ func (process *Process) GetConfig() (ProgramConfiguration, error) {
 		return config, nil
 	case <-process.Context.Done():
 		return ProgramConfiguration{}, ErrChannelClosed
+	}
+}
+
+func (process *Process) Wait() {
+	if process.DeadCh != nil {
+		<-*process.DeadCh
 	}
 }
