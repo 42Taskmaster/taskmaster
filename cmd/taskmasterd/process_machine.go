@@ -1,6 +1,6 @@
 package main
 
-import "github.com/VisorRaptors/taskmaster/machine"
+import "github.com/42Taskmaster/taskmaster/machine"
 
 const (
 	ProcessStateStarting machine.StateType = "STARTING"
