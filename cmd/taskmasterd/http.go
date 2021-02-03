@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -206,18 +205,13 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		} else {
-			configFile, err := os.Open(taskmasterd.Args.ConfigPathArg)
+			configFile, err := os.OpenFile(taskmasterd.Args.ConfigPathArg, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				httpJSONResponse.Error = err.Error()
 			} else {
-				newConfigFile, err := ioutil.ReadAll(reader)
-				if err != nil {
-					httpJSONResponse.Error = err.Error()
-				} else {
-					configFile.Truncate(0)
-					configFile.Write(newConfigFile)
-					taskmasterd.LoadProgramsConfigurations(programsConfigurations)
-				}
+				configFile.Truncate(0)
+				configFile.WriteString(input.ConfigurationData)
+				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 			}
 		}
 
