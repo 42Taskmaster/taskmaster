@@ -94,20 +94,10 @@ func (program *Program) getProcessByID(id string) (Process, error) {
 	return process, nil
 }
 
-func copyProcessMap(processes map[string]Process) map[string]Process {
-	processesCopy := make(map[string]Process)
-
-	for processID, process := range processes {
-		processesCopy[processID] = process
-	}
-
-	return processesCopy
-}
-
 func (program *Program) getProcesses(task Tasker) error {
 	programTaskWithResponse := task.(ProgramTaskRootActionWithResponse)
 
-	programTaskWithResponse.ResponseChan <- copyProcessMap(program.processes)
+	programTaskWithResponse.ResponseChan <- program.processes
 
 	return nil
 }
