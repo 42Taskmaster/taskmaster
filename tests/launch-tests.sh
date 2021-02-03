@@ -5,12 +5,13 @@ ROOT_PATH=$PWD
 
 setUp() {
     cd $ROOT_PATH/scenarios
+    git restore .
 }
 
 tearDown() {
     echo $PWD
     pkill taskmasterd
-    rm -f taskmasterd.lock
+    git restore .
 }
 
 testInfinite() {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -201,10 +202,20 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 		reader := strings.NewReader(input.ConfigurationData)
 
 		programsConfigurations, err := configParse(reader)
-		taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
+		} else {
+			configFile, err := os.OpenFile(taskmasterd.Args.ConfigPathArg, os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				httpJSONResponse.Error = err.Error()
+			} else {
+				configFile.Truncate(0)
+				configFile.WriteString(input.ConfigurationData)
+				configFile.Close()
+				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+			}
 		}
+
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)

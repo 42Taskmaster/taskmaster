@@ -27,7 +27,7 @@ func configCheckPath(path string) bool {
 	return true
 }
 
-func configGetFileReader(path string) (io.Reader, error) {
+func configGetFileReader(path string) (io.ReadCloser, error) {
 	if !configCheckPath(path) {
 		os.Exit(1)
 	}
