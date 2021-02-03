@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -41,6 +41,9 @@ type HttpProgramState struct {
 type HttpProcessState struct {
 	Id    string            `json:"id"`
 	State machine.StateType `json:"state"`
+}
+type HttpConfiguration struct {
+	Data string `json:"data"`
 }
 
 func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
@@ -186,7 +189,24 @@ type HttpConfigurationEndpointInputJSON struct {
 func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		fmt.Fprint(w, "get start")
+		var (
+			httpJSONResponse HttpJSONResponse
+		)
+
+		configFileData, err := ioutil.ReadFile(taskmasterd.Args.ConfigPathArg)
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		} else {
+			httpJSONResponse.Result = append(httpJSONResponse.Result, HttpConfiguration{
+				Data: string(configFileData),
+			})
+		}
+
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
 	case "PUT":
 		var (
 			input            HttpConfigurationEndpointInputJSON
