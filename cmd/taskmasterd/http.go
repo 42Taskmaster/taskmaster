@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -201,10 +203,24 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 		reader := strings.NewReader(input.ConfigurationData)
 
 		programsConfigurations, err := configParse(reader)
-		taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
+		} else {
+			configFile, err := os.Open(taskmasterd.Args.ConfigPathArg)
+			if err != nil {
+				httpJSONResponse.Error = err.Error()
+			} else {
+				newConfigFile, err := ioutil.ReadAll(reader)
+				if err != nil {
+					httpJSONResponse.Error = err.Error()
+				} else {
+					configFile.Truncate(0)
+					configFile.Write(newConfigFile)
+					taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+				}
+			}
 		}
+
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
 			log.Panic(err)

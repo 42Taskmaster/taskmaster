@@ -32,6 +32,7 @@ func main() {
 		log.Fatalf("Error parsing configuration file: %s: %v\n", args.ConfigPathArg, err)
 		os.Exit(1)
 	}
+	configReader.Close()
 
 	daemonInit(args)
 
