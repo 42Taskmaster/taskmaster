@@ -14,9 +14,10 @@ type Process struct {
 	Context         context.Context
 	ProgramTaskChan chan<- Tasker
 
-	TaskActionChan chan TaskAction
-	Cmd            *exec.Cmd
-	Machine        *machine.Machine
+	TaskActionChan           chan TaskAction
+	Cmd                      *exec.Cmd
+	stdoutClose, stderrClose func() error
+	Machine                  *machine.Machine
 
 	DeadCh *chan struct{}
 }
@@ -129,4 +130,16 @@ func (process *Process) Wait() {
 	if process.DeadCh != nil {
 		<-*process.DeadCh
 	}
+}
+
+func (process *Process) CloseFileDescriptors() error {
+	if err := process.stdoutClose(); err != nil {
+		return err
+	}
+
+	if err := process.stderrClose(); err != nil {
+		return err
+	}
+
+	return nil
 }

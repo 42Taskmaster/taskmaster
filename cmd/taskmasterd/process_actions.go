@@ -41,12 +41,14 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		return ProcessEventFatal, nil
 	}
 	cmd.Stdout = stdout
+	process.stdoutClose = stdout.Close
 
 	stderr, err := config.CreateCmdStderr(process.ID)
 	if err != nil {
 		return ProcessEventFatal, nil
 	}
 	cmd.Stderr = stderr
+	process.stderrClose = stderr.Close
 
 	cmd.Dir = config.Workingdir
 
@@ -81,6 +83,13 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		process.Cmd.Wait()
 
 		close(deadCh)
+
+		if err := process.CloseFileDescriptors(); err != nil {
+			log.Printf(
+				"error while closing opened file descriptors of stdout and stderr: %v\n",
+				err,
+			)
+		}
 
 		event := ProcessEventStopped
 		if process.Cmd.ProcessState.Exited() {
