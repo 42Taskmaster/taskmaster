@@ -98,7 +98,7 @@ func (config *ProgramConfiguration) CreateCmdEnvironment() []string {
 	return env
 }
 
-func (config *ProgramConfiguration) CreateCmdStdout(processID string) (io.Writer, error) {
+func (config *ProgramConfiguration) CreateCmdStdout(processID string) (io.WriteCloser, error) {
 	if len(config.Stdout) == 0 || config.Stdout == "NONE" {
 		return nil, nil
 	}
@@ -115,7 +115,7 @@ func (config *ProgramConfiguration) CreateCmdStdout(processID string) (io.Writer
 	return file, nil
 }
 
-func (config *ProgramConfiguration) CreateCmdStderr(processID string) (io.Writer, error) {
+func (config *ProgramConfiguration) CreateCmdStderr(processID string) (io.WriteCloser, error) {
 	if len(config.Stderr) == 0 || config.Stderr == "NONE" {
 		return nil, nil
 	}
