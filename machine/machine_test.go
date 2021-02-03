@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/VisorRaptors/taskmaster/machine"
+	"github.com/42Taskmaster/taskmaster/machine"
 )
 
 func TestOnOffMachine(t *testing.T) {

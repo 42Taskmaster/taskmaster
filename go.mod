@@ -1,4 +1,4 @@
-module github.com/VisorRaptors/taskmaster
+module github.com/42Taskmaster/taskmaster
 
 go 1.15
 

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VisorRaptors/taskmaster/machine"
+	"github.com/42Taskmaster/taskmaster/machine"
 )
 
 type HttpHandleFunc func(http.ResponseWriter, *http.Request)

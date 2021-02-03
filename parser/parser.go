@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"unicode"
 
-	"github.com/VisorRaptors/taskmaster/machine"
+	"github.com/42Taskmaster/taskmaster/machine"
 )
 
 const (

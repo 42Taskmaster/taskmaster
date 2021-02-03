@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/VisorRaptors/taskmaster/machine"
-	"github.com/VisorRaptors/taskmaster/parser"
+	"github.com/42Taskmaster/taskmaster/machine"
+	"github.com/42Taskmaster/taskmaster/parser"
 )
 
 func StringSlicesEqual(a, b []string) bool {

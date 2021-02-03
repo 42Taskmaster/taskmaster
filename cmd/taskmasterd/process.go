@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/VisorRaptors/taskmaster/machine"
+	"github.com/42Taskmaster/taskmaster/machine"
 )
 
 type Process struct {

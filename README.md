@@ -1,5 +1,5 @@
-![CI](https://github.com/VisorRaptors/taskmaster/workflows/Continuous%20Integration/badge.svg)
+![CI](https://github.com/42Taskmaster/taskmaster/workflows/Continuous%20Integration/badge.svg)
 
 # Taskmaster
 
-Made by [VisorRaptors](https://github.com/VisorRaptors).
+Made by [42Taskmaster](https://github.com/42Taskmaster).
