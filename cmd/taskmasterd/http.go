@@ -211,6 +211,7 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 			} else {
 				configFile.Truncate(0)
 				configFile.WriteString(input.ConfigurationData)
+				configFile.Close()
 				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 			}
 		}
