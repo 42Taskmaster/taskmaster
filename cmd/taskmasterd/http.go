@@ -262,6 +262,7 @@ func httpNotFound(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Reque
 func httpHandleEndpoint(taskmasterd *Taskmasterd, callback HttpEndpointFunc) HttpHandleFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.RemoteAddr, r.Method, r.RequestURI)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		callback(taskmasterd, w, r)
 	}
 }
