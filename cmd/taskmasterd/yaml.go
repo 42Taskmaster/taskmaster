@@ -71,21 +71,21 @@ func (programs *ProgramsYaml) Validate() (ProgramsConfigurations, error) {
 }
 
 type ProgramConfiguration struct {
-	Name         string
-	Cmd          string
-	Numprocs     int
-	Umask        string
-	Workingdir   string
-	Autostart    bool
-	Autorestart  AutorestartType
-	Exitcodes    []int
-	Startretries int
-	Starttime    int
-	Stopsignal   StopSignal
-	Stoptime     int
-	Stdout       string
-	Stderr       string
-	Env          map[string]string
+	Name         string            `json:"name"`
+	Cmd          string            `json:"cmd"`
+	Numprocs     int               `json:"numprocs"`
+	Umask        string            `json:"umask"`
+	Workingdir   string            `json:"workingdir"`
+	Autostart    bool              `json:"autostart"`
+	Autorestart  AutorestartType   `json:"autorestart"`
+	Exitcodes    []int             `json:"exitcodes"`
+	Startretries int               `json:"startretries"`
+	Starttime    int               `json:"starttime"`
+	Stopsignal   StopSignal        `json:"stopsignal"`
+	Stoptime     int               `json:"stoptime"`
+	Stdout       string            `json:"stout"`
+	Stderr       string            `json:"stderr"`
+	Env          map[string]string `json:"env"`
 }
 
 func (config *ProgramConfiguration) CreateCmdEnvironment() []string {

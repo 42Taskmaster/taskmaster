@@ -28,19 +28,26 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 }
 
 type HttpJSONResponse struct {
-	Error  string        `json:"error,omitempty"`
-	Result []interface{} `json:"result,omitempty"`
+	Error  string      `json:"error,omitempty"`
+	Result interface{} `json:"result,omitempty"`
 }
 
-type HttpProgramState struct {
-	ProgramID    string             `json:"program_id"`
-	ProgramState ProgramState       `json:"program_state"`
-	Processes    []HttpProcessState `json:"processes"`
+type HttpPrograms struct {
+	Programs []HttpProgram `json:"programs"`
 }
 
-type HttpProcessState struct {
-	Id    string            `json:"id"`
-	State machine.StateType `json:"state"`
+type HttpProgram struct {
+	Id            string               `json:"id"`
+	State         ProgramState         `json:"state"`
+	Configuration ProgramConfiguration `json:"configuration"`
+	Processes     []HttpProcess        `json:"processes"`
+}
+
+type HttpProcess struct {
+	Id     string            `json:"id"`
+	Pid    int               `json:"pid"`
+	State  machine.StateType `json:"state"`
+	Uptime int               `json:"uptime"`
 }
 type HttpConfiguration struct {
 	Data string `json:"data"`
@@ -55,25 +62,38 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		} else {
+			httpPrograms := HttpPrograms{}
 			for _, program := range programs {
 				processes, err := program.GetSortedProcesses()
 				if err != nil {
 					httpJSONResponse.Error = err.Error()
 					break
 				}
-				httpProgramStatus := HttpProgramState{
-					ProgramID:    program.configuration.Name,
-					ProgramState: GetProgramState(processes),
+				config, err := program.GetConfig()
+				if err != nil {
+					httpJSONResponse.Error = err.Error()
+					break
+				}
+				httpProgram := HttpProgram{
+					Id:            program.configuration.Name,
+					Configuration: config,
+					State:         GetProgramState(processes),
 				}
 				for _, process := range processes {
-					httpProcessState := HttpProcessState{
+					pid := 0
+					if process.Cmd != nil && process.Cmd.Process != nil {
+						pid = process.Cmd.Process.Pid
+					}
+					httpProcess := HttpProcess{
 						Id:    process.ID,
+						Pid:   pid,
 						State: process.Machine.Current(),
 					}
-					httpProgramStatus.Processes = append(httpProgramStatus.Processes, httpProcessState)
+					httpProgram.Processes = append(httpProgram.Processes, httpProcess)
 				}
-				httpJSONResponse.Result = append(httpJSONResponse.Result, httpProgramStatus)
+				httpPrograms.Programs = append(httpPrograms.Programs, httpProgram)
 			}
+			httpJSONResponse.Result = httpPrograms
 		}
 		json, err := json.Marshal(httpJSONResponse)
 		if err != nil {
@@ -197,9 +217,9 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 		if err != nil {
 			httpJSONResponse.Error = err.Error()
 		} else {
-			httpJSONResponse.Result = append(httpJSONResponse.Result, HttpConfiguration{
+			httpJSONResponse.Result = HttpConfiguration{
 				Data: string(configFileData),
-			})
+			}
 		}
 
 		json, err := json.Marshal(httpJSONResponse)
