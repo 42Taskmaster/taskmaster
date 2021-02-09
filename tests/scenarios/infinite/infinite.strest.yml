@@ -17,11 +17,13 @@ requests:
     delay: 1000
     maxRetries: 2
     validate:
-      - jsonpath: content.result[0].program_id
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
         expect: infinite
-      - jsonpath: content.result[0].program_state
+      - jsonpath: content.result.programs[0].state
         expect: RUNNING
-      - jsonpath: content.result[0].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
   stop-immortal-with-sigterm:
     request:
@@ -39,11 +41,13 @@ requests:
       url: http://localhost:8080/status
       method: GET
     validate:
-      - jsonpath: content.result[0].program_id
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
         expect: infinite
-      - jsonpath: content.result[0].program_state
+      - jsonpath: content.result.programs[0].state
         expect: STOPPING
-      - jsonpath: content.result[0].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
   still-stopping-after-2-seconds:
     request:
@@ -51,11 +55,13 @@ requests:
       method: GET
     delay: 2000
     validate:
-      - jsonpath: content.result[0].program_id
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
         expect: infinite
-      - jsonpath: content.result[0].program_state
+      - jsonpath: content.result.programs[0].state
         expect: STOPPING
-      - jsonpath: content.result[0].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
   still-stopping-after-5-seconds:
     request:
@@ -63,11 +69,13 @@ requests:
       method: GET
     delay: 3000
     validate:
-      - jsonpath: content.result[0].program_id
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
         expect: infinite
-      - jsonpath: content.result[0].program_state
+      - jsonpath: content.result.programs[0].state
         expect: STOPPING
-      - jsonpath: content.result[0].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
   stopped-after-11-seconds:
     request:
@@ -75,9 +83,11 @@ requests:
       method: GET
     delay: 6000
     validate:
-      - jsonpath: content.result[0].program_id
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
         expect: infinite
-      - jsonpath: content.result[0].program_state
+      - jsonpath: content.result.programs[0].state
         expect: STOPPED
-      - jsonpath: content.result[0].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPED
