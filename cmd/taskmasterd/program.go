@@ -403,6 +403,33 @@ func (program *Program) GetSortedProcesses() ([]Process, error) {
 	return sortedProcesses, nil
 }
 
+func (program *Program) GetConfig() (ProgramConfiguration, error) {
+	responseChan := make(chan interface{})
+
+	select {
+	case program.ProcessTaskChan <- ProgramTaskRootActionWithResponse{
+		ProgramTaskRootAction: ProgramTaskRootAction{
+			TaskBase: TaskBase{
+				Action: ProgramTaskActionGetConfig,
+			},
+		},
+
+		ResponseChan: responseChan,
+	}:
+	case <-program.LocalContext.Done():
+		return ProgramConfiguration{}, ErrChannelClosed
+	}
+
+	select {
+	case res := <-responseChan:
+		config := res.(ProgramConfiguration)
+
+		return config, nil
+	case <-program.LocalContext.Done():
+		return ProgramConfiguration{}, ErrChannelClosed
+	}
+}
+
 func GetProgramState(processes []Process) ProgramState {
 	starting := 0
 	running := 0
