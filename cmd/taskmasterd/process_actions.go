@@ -67,6 +67,8 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 	}
 	ResetUmask()
 
+	process.StartChronometer()
+
 	deadCh := make(chan struct{})
 	process.DeadCh = &deadCh
 
@@ -83,6 +85,8 @@ func ProcessStartAction(context machine.Context) (machine.EventType, error) {
 		process.Cmd.Wait()
 
 		close(deadCh)
+
+		process.StopChronometer()
 
 		if err := process.CloseFileDescriptors(); err != nil {
 			log.Printf(

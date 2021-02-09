@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/42Taskmaster/taskmaster/machine"
 )
@@ -44,10 +45,12 @@ type HttpProgram struct {
 }
 
 type HttpProcess struct {
-	Id     string            `json:"id"`
-	Pid    int               `json:"pid"`
-	State  machine.StateType `json:"state"`
-	Uptime int               `json:"uptime"`
+	Id    string            `json:"id"`
+	Pid   int               `json:"pid"`
+	State machine.StateType `json:"state"`
+
+	StartedAt time.Time `json:"startedAt"`
+	EndedAt   time.Time `json:"endedAt"`
 }
 type HttpConfiguration struct {
 	Data string `json:"data"`
@@ -88,6 +91,9 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 						Id:    process.ID,
 						Pid:   pid,
 						State: process.Machine.Current(),
+
+						StartedAt: *process.StartedAt,
+						EndedAt:   *process.EndedAt,
 					}
 					httpProgram.Processes = append(httpProgram.Processes, httpProcess)
 				}

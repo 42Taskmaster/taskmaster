@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/42Taskmaster/taskmaster/machine"
 )
@@ -18,6 +20,7 @@ type Process struct {
 	Cmd                      *exec.Cmd
 	stdoutClose, stderrClose func() error
 	Machine                  *machine.Machine
+	StartedAt, EndedAt       *time.Time
 
 	DeadCh *chan struct{}
 }
@@ -35,6 +38,9 @@ func NewProcess(args NewProcessArgs) Process {
 		ProgramTaskChan: args.ProgramTaskChan,
 
 		TaskActionChan: make(chan TaskAction),
+
+		StartedAt: &time.Time{},
+		EndedAt:   &time.Time{},
 	}
 
 	process.Machine = NewProcessMachine(&process)
@@ -42,6 +48,19 @@ func NewProcess(args NewProcessArgs) Process {
 	go process.Monitor()
 
 	return process
+}
+
+func (process *Process) StartChronometer() {
+	log.Println("StartChronometer called", process)
+
+	*process.StartedAt = time.Now()
+	*process.EndedAt = time.Time{}
+}
+
+func (process *Process) StopChronometer() {
+	log.Println("StopChronometer called", process)
+
+	*process.EndedAt = time.Now()
 }
 
 func (process *Process) Monitor() {
