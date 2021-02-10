@@ -32,7 +32,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          file: >-
+          data: >-
             programs:
               dev-random:
                 cmd: "sleep 360"

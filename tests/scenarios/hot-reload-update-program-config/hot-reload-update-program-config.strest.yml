@@ -34,7 +34,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          file: >-
+          data: >-
             programs:
               dev-zero:
                 cmd: "sleep 120"
@@ -69,7 +69,7 @@ requests:
       postData:
         mimeType: application/json
         text:
-          file: >-
+          data: >-
             programs:
               dev-zero:
                 cmd: "sleep 120"

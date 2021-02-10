@@ -203,7 +203,7 @@ func httpEndpointRestart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *htt
 }
 
 type HttpConfigurationEndpointInputJSON struct {
-	ConfigurationData string `json:"file"`
+	ConfigurationData string `json:"data"`
 }
 
 func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
