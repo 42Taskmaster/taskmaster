@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os/exec"
 	"syscall"
 	"time"
@@ -51,15 +50,11 @@ func NewProcess(args NewProcessArgs) Process {
 }
 
 func (process *Process) StartChronometer() {
-	log.Println("StartChronometer called", process)
-
 	*process.StartedAt = time.Now()
 	*process.EndedAt = time.Time{}
 }
 
 func (process *Process) StopChronometer() {
-	log.Println("StopChronometer called", process)
-
 	*process.EndedAt = time.Now()
 }
 
