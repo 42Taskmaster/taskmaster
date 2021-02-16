@@ -27,7 +27,7 @@ type Program struct {
 	LocalContext       context.Context
 	CancelLocalContext context.CancelFunc
 
-	processes     map[string]Process
+	processes     map[string]Processer
 	configuration ProgramConfiguration
 
 	Valid bool
@@ -62,7 +62,7 @@ func NewProgram(args NewProgramArgs) Program {
 		LocalContext:       localContext,
 		CancelLocalContext: localCancel,
 
-		processes:     make(map[string]Process),
+		processes:     make(map[string]Processer),
 		configuration: args.Configuration,
 
 		Valid: true,
@@ -83,10 +83,10 @@ func NewProgram(args NewProgramArgs) Program {
 	return program
 }
 
-func (program *Program) getProcessByID(id string) (Process, error) {
+func (program *Program) getProcessByID(id string) (Processer, error) {
 	process, ok := program.processes[id]
 	if !ok {
-		return Process{}, &ErrProcessNotFound{
+		return nil, &ErrProcessNotFound{
 			ProcessID: id,
 		}
 	}
@@ -102,12 +102,12 @@ func (program *Program) getProcesses(task Tasker) error {
 	return nil
 }
 
-func (program *Program) getProcessFromTasker(task Tasker) (Process, error) {
+func (program *Program) getProcessFromTasker(task Tasker) (Processer, error) {
 	processTask := task.(ProcessTask)
 	processID := processTask.ProcessID
 	process, err := program.getProcessByID(processID)
 	if err != nil {
-		return Process{}, err
+		return nil, err
 	}
 
 	return process, nil
@@ -189,7 +189,11 @@ func (program *Program) stopAllProcessesAndWait(task Tasker) error {
 }
 
 func (program *Program) restartAllProcesses(task Tasker) error {
-	log.Printf("Restarting program '%s' with %d process(es)...", program.configuration.Name, program.configuration.Numprocs)
+	log.Printf(
+		"Restarting program '%s' with %d process(es)...",
+		program.configuration.Name,
+		program.configuration.Numprocs,
+	)
 	for _, process := range program.processes {
 		process.Restart()
 	}
@@ -216,6 +220,8 @@ func (program *Program) setConfig(task Tasker) error {
 				return err
 			}
 
+			serializedProcess := process.Serialize()
+
 			go func() {
 				process.Wait()
 
@@ -223,14 +229,11 @@ func (program *Program) setConfig(task Tasker) error {
 					TaskBase: TaskBase{
 						Action: ProgramTaskActionRemove,
 					},
-					ProcessID: process.ID,
+					ProcessID: serializedProcess.ID,
 				}
 			}()
 
-			err = process.Stop()
-			if err != nil {
-				return err
-			}
+			process.Stop()
 		}
 	} else if delta > 0 {
 		for index := oldNumProcess + 1; index <= newNumProcesses; index++ {
@@ -244,10 +247,7 @@ func (program *Program) setConfig(task Tasker) error {
 			program.processes[processID] = process
 
 			if program.configuration.Autostart {
-				err := process.Start()
-				if err != nil {
-					return err
-				}
+				process.Start()
 			}
 		}
 	}
@@ -353,14 +353,14 @@ func (program *Program) Restart() {
 	select {
 	case program.ProcessTaskChan <- ProgramTaskRootAction{
 		TaskBase: TaskBase{
-			Action: ProgramTaskActionRestart,
+			Action: ProgramTaskActionRestartAll,
 		},
 	}:
 	case <-program.GlobalContext.Done():
 	}
 }
 
-func (program *Program) GetProcesses() (map[string]Process, error) {
+func (program *Program) GetProcesses() (map[string]Processer, error) {
 	responseChan := make(chan interface{})
 
 	program.ProcessTaskChan <- ProgramTaskRootActionWithResponse{
@@ -374,11 +374,11 @@ func (program *Program) GetProcesses() (map[string]Process, error) {
 	}
 
 	resp := <-responseChan
-	processes := resp.(map[string]Process)
+	processes := resp.(map[string]Processer)
 	return processes, nil
 }
 
-func (program *Program) GetSortedProcesses() ([]Process, error) {
+func (program *Program) GetSortedProcesses() ([]Processer, error) {
 	ids := []string{}
 
 	processes, err := program.GetProcesses()
@@ -392,7 +392,7 @@ func (program *Program) GetSortedProcesses() ([]Process, error) {
 
 	sort.Strings(ids)
 
-	sortedProcesses := []Process{}
+	sortedProcesses := make([]Processer, 0, len(ids))
 	for _, id := range ids {
 		process, ok := processes[id]
 		if ok {
@@ -430,7 +430,7 @@ func (program *Program) GetConfig() (ProgramConfiguration, error) {
 	}
 }
 
-func GetProgramState(processes []Process) ProgramState {
+func GetProgramState(processes []Processer) ProgramState {
 	starting := 0
 	running := 0
 	backoff := 0
@@ -441,7 +441,7 @@ func GetProgramState(processes []Process) ProgramState {
 	unknown := 0
 
 	for _, process := range processes {
-		switch process.Machine.Current() {
+		switch process.GetStateMachineCurrentState() {
 		case ProcessStateStarting:
 			starting++
 		case ProcessStateRunning:

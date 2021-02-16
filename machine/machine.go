@@ -87,7 +87,7 @@ type Context interface{}
 
 // An Action is performed when the machine is transitioning to the node where it's defined.
 // It takes machine context and returns an event to send to the machine itself, or NoopEvent.
-type Action func(Context) (EventType, error)
+type Action func(*Machine, Context) (EventType, error)
 
 // Events map holds events to listen with the state to transition to when triggered.
 type Events map[EventType]StateType
@@ -137,7 +137,11 @@ func (machine *Machine) Previous() StateType {
 func (machine *Machine) Current() StateType {
 	machine.lock.Lock()
 	defer machine.lock.Unlock()
+	return machine.current
+}
 
+// UnsafeCurrent returns current state without taking care of active lock.
+func (machine *Machine) UnsafeCurrent() StateType {
 	return machine.current
 }
 
@@ -167,7 +171,7 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 
 func (machine *Machine) executeActions(stateNode StateNode) (EventType, error) {
 	for index, actionToRun := range stateNode.Actions {
-		stateToReach, err := actionToRun(machine.Context)
+		stateToReach, err := actionToRun(machine, machine.Context)
 		if err != nil {
 			return NoopEvent, &ErrAction{
 				ID:  index,

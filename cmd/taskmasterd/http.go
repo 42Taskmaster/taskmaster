@@ -45,7 +45,7 @@ type HttpProgram struct {
 }
 
 type HttpProcess struct {
-	Id    string            `json:"id"`
+	ID    string            `json:"id"`
 	Pid   int               `json:"pid"`
 	State machine.StateType `json:"state"`
 
@@ -84,16 +84,19 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 				}
 				for _, process := range processes {
 					pid := 0
-					if process.Cmd != nil && process.Cmd.Process != nil {
-						pid = process.Cmd.Process.Pid
+					if cmd := process.GetCmd(); cmd != nil && cmd.Process != nil {
+						pid = cmd.Process.Pid
 					}
-					httpProcess := HttpProcess{
-						Id:    process.ID,
-						Pid:   pid,
-						State: process.Machine.Current(),
 
-						StartedAt: *process.StartedAt,
-						EndedAt:   *process.EndedAt,
+					serializedProcess := process.Serialize()
+
+					httpProcess := HttpProcess{
+						ID:    serializedProcess.ID,
+						Pid:   pid,
+						State: process.GetStateMachineCurrentState(),
+
+						StartedAt: serializedProcess.StartedAt,
+						EndedAt:   serializedProcess.EndedAt,
 					}
 					httpProgram.Processes = append(httpProgram.Processes, httpProcess)
 				}
