@@ -24,7 +24,7 @@ const (
 )
 
 type ProcessMachineContext struct {
-	Process    *Process
+	Process    Processer
 	Starttries int
 }
 

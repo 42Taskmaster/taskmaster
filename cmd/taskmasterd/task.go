@@ -6,7 +6,15 @@ var (
 	ErrChannelClosed = errors.New("channel has been closed")
 )
 
+type Tasker interface {
+	GetAction() TaskAction
+}
+
 type TaskAction string
+
+func (task TaskAction) GetAction() TaskAction {
+	return task
+}
 
 const (
 	TaskmasterdTaskActionGet    TaskAction = "TASKMASTERD_GET"
@@ -28,16 +36,24 @@ const (
 	ProgramTaskActionSetConfig      TaskAction = "PROGRAM_SET_CONFIG"
 	ProgramTaskActionGetConfig      TaskAction = "PROGRAM_GET_CONFIG"
 
-	ProcessTaskActionGet     TaskAction = "PROCESS_GET"
-	ProcessTaskActionStart   TaskAction = "PROCESS_START"
-	ProcessTaskActionStop    TaskAction = "PROCESS_STOP"
-	ProcessTaskActionRestart TaskAction = "PROCESS_RESTART"
-	ProcessTaskActionKill    TaskAction = "PROCESS_KILL"
-)
+	ProcessTaskActionGetContext                  TaskAction = "PROCESS_GET_CONTEXT"
+	ProcessTaskActionSerialize                   TaskAction = "PROCESS_SERIALIZE"
+	ProcessTaskActionCreateNewDeadChannel        TaskAction = "PROCESS_CREATE_NEW_DEAD_CHANNEL"
+	ProcessTaskActionGetProgramConfig            TaskAction = "PROCESS_GET_PROGRAM_CONFIG"
+	ProcessTaskActionGetCmd                      TaskAction = "PROCESS_GET_CMD"
+	ProcessTaskActionGetDeadChannel              TaskAction = "PROCESS_GET_DEAD_CHANNEL"
+	ProcessTaskActionGetStateMachineCurrentState TaskAction = "PROCESS_GET_STATE_MACHINE_CURRENT_STATE"
+	ProcessTaskActionSetCmd                      TaskAction = "PROCESS_SET_CMD"
+	ProcessTaskActionSetStdoutStderrCloser       TaskAction = "PROCESS_SET_STDOUT_STDERR_CLOSER"
+	ProcessTaskActionCloseFileDescriptors        TaskAction = "PROCESS_CLOSE_FILE_DESCRIPTORS"
+	ProcessTaskActionStart                       TaskAction = "PROCESS_START"
+	ProcessTaskActionStop                        TaskAction = "PROCESS_STOP"
+	ProcessTaskActionRestart                     TaskAction = "PROCESS_RESTART"
+	ProcessTaskActionKill                        TaskAction = "PROCESS_KILL"
 
-type Tasker interface {
-	GetAction() TaskAction
-}
+	ProcessTaskActionStartChronometer TaskAction = "PROCESS_START_CHRONOMETER"
+	ProcessTaskActionStopChronometer  TaskAction = "PROCESS_STOP_CHRONOMETER"
+)
 
 type TaskBase struct {
 	Action TaskAction
@@ -111,4 +127,16 @@ type ProcessTask struct {
 	TaskBase
 
 	ProcessID string
+}
+
+type ProcessInternalTaskWithResponse struct {
+	TaskBase
+
+	ResponseChan chan interface{}
+}
+
+type ProcessInternalTaskWithPayload struct {
+	TaskBase
+
+	Payload interface{}
 }
