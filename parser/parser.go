@@ -197,7 +197,7 @@ func ParseCommand(cmd string) (ParsedCommand, error) {
 	}, nil
 }
 
-func parserStateWhitespaceAction(context machine.Context) (machine.EventType, error) {
+func parserStateWhitespaceAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
 
 	if ctx.CurrentChunk == "" {
@@ -210,7 +210,7 @@ func parserStateWhitespaceAction(context machine.Context) (machine.EventType, er
 	return machine.NoopEvent, nil
 }
 
-func parserStateInWordAction(context machine.Context) (machine.EventType, error) {
+func parserStateInWordAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
 
 	ctx.CurrentChunk += string(*ctx.CurrentChar)
@@ -218,7 +218,7 @@ func parserStateInWordAction(context machine.Context) (machine.EventType, error)
 	return machine.NoopEvent, nil
 }
 
-func parserStateInWordDoubleQuotedAction(context machine.Context) (machine.EventType, error) {
+func parserStateInWordDoubleQuotedAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
 
 	if *ctx.CurrentChar == '"' {
@@ -230,7 +230,7 @@ func parserStateInWordDoubleQuotedAction(context machine.Context) (machine.Event
 	return machine.NoopEvent, nil
 }
 
-func parserStateInWordSingleQuotedAction(context machine.Context) (machine.EventType, error) {
+func parserStateInWordSingleQuotedAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
 
 	if *ctx.CurrentChar == '\'' {
@@ -242,7 +242,7 @@ func parserStateInWordSingleQuotedAction(context machine.Context) (machine.Event
 	return machine.NoopEvent, nil
 }
 
-func parserStateEndAction(context machine.Context) (machine.EventType, error) {
+func parserStateEndAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	ctx := context.(*parserContext)
 
 	if ctx.CurrentChunk == "" {
