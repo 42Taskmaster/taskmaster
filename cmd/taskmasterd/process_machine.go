@@ -70,7 +70,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateRunning: machine.StateNode{
 				Actions: []machine.Action{
-					ProcessRunningAction,
+					ProcessResetStarttriesAction,
 				},
 
 				On: machine.Events{
@@ -82,6 +82,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 			ProcessStateStopping: machine.StateNode{
 				Actions: []machine.Action{
 					ProcessStopAction,
+					ProcessResetStarttriesAction,
 				},
 
 				On: machine.Events{
@@ -96,6 +97,10 @@ func NewProcessMachine(process *Process) *machine.Machine {
 			},
 
 			ProcessStateFatal: machine.StateNode{
+				Actions: []machine.Action{
+					ProcessResetStarttriesAction,
+				},
+
 				On: machine.Events{
 					ProcessEventStart: ProcessStateStarting,
 				},

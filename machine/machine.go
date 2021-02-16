@@ -2,6 +2,7 @@ package machine
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"sync"
 )
@@ -117,6 +118,8 @@ type Machine struct {
 
 	StateNodes StateNodes
 
+	Debug bool
+
 	lock sync.Mutex
 }
 
@@ -152,6 +155,9 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 			Err: ErrInvalidTransitionInvalidCurrentState,
 		}
 	}
+	if machine.Debug {
+		log.Println("state machine: current state:", machine.current)
+	}
 
 	if currentState.On == nil {
 		return NoopState, &ErrInvalidTransition{
@@ -164,6 +170,9 @@ func (machine *Machine) getNextState(event EventType) (StateType, error) {
 		return NoopState, &ErrInvalidTransition{
 			Err: ErrInvalidTransitionNotImplemented,
 		}
+	}
+	if machine.Debug {
+		log.Println("state machine: next state:", nextState)
 	}
 
 	return nextState, nil
