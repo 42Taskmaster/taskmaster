@@ -17,7 +17,6 @@ const (
 	ProcessEventStart          machine.EventType = "start"
 	ProcessEventStarted        machine.EventType = "started"
 	ProcessEventStop           machine.EventType = "stop"
-	ProcessEventExit           machine.EventType = "exit"
 	ProcessEventExitedTooEarly machine.EventType = "exited-too-early"
 	ProcessEventStopped        machine.EventType = "stopped"
 	ProcessEventFatal          machine.EventType = "fatal"
@@ -53,7 +52,6 @@ func NewProcessMachine(process *Process) *machine.Machine {
 					ProcessEventStarted: ProcessStateRunning,
 					ProcessEventStop:    ProcessStateStopping,
 					ProcessEventStopped: ProcessStateBackoff,
-					ProcessEventExit:    ProcessStateBackoff,
 				},
 			},
 
@@ -74,8 +72,8 @@ func NewProcessMachine(process *Process) *machine.Machine {
 				},
 
 				On: machine.Events{
-					ProcessEventStop: ProcessStateStopping,
-					ProcessEventExit: ProcessStateExited,
+					ProcessEventStop:    ProcessStateStopping,
+					ProcessEventStopped: ProcessStateExited,
 				},
 			},
 
@@ -91,6 +89,10 @@ func NewProcessMachine(process *Process) *machine.Machine {
 			},
 
 			ProcessStateExited: machine.StateNode{
+				Actions: []machine.Action{
+					ProcessExitedAction,
+				},
+
 				On: machine.Events{
 					ProcessEventStart: ProcessStateStarting,
 				},
