@@ -290,6 +290,7 @@ func httpHandleEndpoint(taskmasterd *Taskmasterd, callback HttpEndpointFunc) Htt
 		log.Println(r.RemoteAddr, r.Method, r.RequestURI)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
 		if r.Method != "OPTIONS" {
 			callback(taskmasterd, w, r)
 		}
