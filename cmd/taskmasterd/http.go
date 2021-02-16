@@ -24,6 +24,7 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/stop":          httpEndpointStop,
 	"/restart":       httpEndpointRestart,
 	"/configuration": httpEndpointConfiguration,
+	"/logs":          httpEndpointLogs,
 	"/shutdown":      httpEndpointShutdown,
 	"/":              httpNotFound,
 }
@@ -53,6 +54,10 @@ type HttpProcess struct {
 	EndedAt   time.Time `json:"endedAt"`
 }
 type HttpConfiguration struct {
+	Data string `json:"data"`
+}
+
+type HttpLogs struct {
 	Data string `json:"data"`
 }
 
@@ -263,6 +268,50 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 				configFile.Close()
 				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 			}
+		}
+
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointLogs(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		var (
+			httpJSONResponse HttpJSONResponse
+		)
+
+		configFileData, err := ioutil.ReadFile(taskmasterd.Args.LogPathArg)
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		} else {
+			httpJSONResponse.Result = HttpLogs{
+				Data: string(configFileData),
+			}
+		}
+
+		json, err := json.Marshal(httpJSONResponse)
+		if err != nil {
+			log.Panic(err)
+		}
+		w.Write(json)
+	case "DELETE":
+		var (
+			httpJSONResponse HttpJSONResponse
+		)
+
+		configFile, err := os.OpenFile(taskmasterd.Args.LogPathArg, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			httpJSONResponse.Error = err.Error()
+		} else {
+			configFile.Truncate(0)
+			configFile.Close()
 		}
 
 		json, err := json.Marshal(httpJSONResponse)
