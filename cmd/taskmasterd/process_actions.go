@@ -208,7 +208,7 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 	switch config.Autorestart {
 	case AutorestartOn:
 		processContext.Starttries++
-		if processContext.Starttries == config.Startretries {
+		if processContext.Starttries >= config.Startretries {
 			log.Printf(
 				"Fatal: could not start process '%s' of program '%s' (%d tries)",
 				serializedProcess.ID,
@@ -231,7 +231,7 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 			}
 		}
 		processContext.Starttries++
-		if processContext.Starttries == config.Startretries {
+		if processContext.Starttries >= config.Startretries {
 			log.Printf(
 				"Fatal: could not start process '%s' of program '%s' (%d tries)",
 				serializedProcess.ID,
@@ -251,7 +251,7 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 	}
 }
 
-func ProcessRunningAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
+func ProcessResetStarttriesAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	processContext := context.(*ProcessMachineContext)
 	processContext.Starttries = 0
 
