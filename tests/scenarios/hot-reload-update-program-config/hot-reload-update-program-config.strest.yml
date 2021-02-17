@@ -27,6 +27,8 @@ requests:
         expect: 1
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
   hot-reload-increment-numprocs:
     request:
       url: http://localhost:8080/configuration
@@ -58,10 +60,16 @@ requests:
         expect: 3
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
       - jsonpath: content.result.programs[0].processes[1].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[1].pid
+        regex: ^[1-9]
       - jsonpath: content.result.programs[0].processes[2].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[2].pid
+        regex: ^[1-9]
   hot-reload-decrement-numprocs:
     request:
       url: http://localhost:8080/configuration
@@ -93,5 +101,9 @@ requests:
         expect: 2
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
       - jsonpath: content.result.programs[0].processes[1].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[1].pid
+        regex: ^[1-9]

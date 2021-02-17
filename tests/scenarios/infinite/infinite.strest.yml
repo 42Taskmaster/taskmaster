@@ -25,6 +25,8 @@ requests:
         expect: RUNNING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
   stop-immortal-with-sigterm:
     request:
       url: http://localhost:8080/stop
@@ -49,6 +51,8 @@ requests:
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^0
   still-stopping-after-2-seconds:
     request:
       url: http://localhost:8080/status
@@ -63,6 +67,8 @@ requests:
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^0
   still-stopping-after-5-seconds:
     request:
       url: http://localhost:8080/status
@@ -77,6 +83,8 @@ requests:
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^0
   stopped-after-11-seconds:
     request:
       url: http://localhost:8080/status
@@ -91,3 +99,5 @@ requests:
         expect: STOPPED
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPED
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^0
