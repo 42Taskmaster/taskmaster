@@ -14,12 +14,11 @@ const (
 )
 
 const (
-	ProcessEventStart          machine.EventType = "start"
-	ProcessEventStarted        machine.EventType = "started"
-	ProcessEventStop           machine.EventType = "stop"
-	ProcessEventExitedTooEarly machine.EventType = "exited-too-early"
-	ProcessEventStopped        machine.EventType = "stopped"
-	ProcessEventFatal          machine.EventType = "fatal"
+	ProcessEventStart   machine.EventType = "start"
+	ProcessEventStarted machine.EventType = "started"
+	ProcessEventStop    machine.EventType = "stop"
+	ProcessEventStopped machine.EventType = "stopped"
+	ProcessEventFatal   machine.EventType = "fatal"
 )
 
 type ProcessMachineContext struct {
