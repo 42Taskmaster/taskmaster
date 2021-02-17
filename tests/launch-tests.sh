@@ -6,12 +6,16 @@ ROOT_PATH=$PWD
 setUp() {
     cd $ROOT_PATH/scenarios
     git restore .
+
+    true
 }
 
 tearDown() {
     echo $PWD
     pkill taskmasterd
     git restore .
+
+    true
 }
 
 testInfinite() {
@@ -34,6 +38,15 @@ testHotReloadTotalNewConfig() {
 
 testHotReloadUpdateProgramConfig() {
     cd hot-reload-update-program-config
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+}
+
+testHotReloadUpdateProgramConfig() {
+    cd not-found-command
     rm -f taskmasterd.log
 
     ./test.sh

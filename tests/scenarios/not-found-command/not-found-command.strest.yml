@@ -1,0 +1,27 @@
+requests:
+  start-process:
+    request:
+      url: http://localhost:8080/start
+      method: POST
+      postData:
+        mimeType: application/json
+        text:
+          program_id: unknown-command
+    validate:
+      - jsonpath: status
+        expect: 200
+  running-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
+        expect: unknown-command
+      - jsonpath: content.result.programs[0].state
+        expect: FATAL
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: FATAL

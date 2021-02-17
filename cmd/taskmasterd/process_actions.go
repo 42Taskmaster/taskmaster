@@ -104,12 +104,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 		ResetUmask()
 
-		return ProcessEventFatal, &ErrProcessAction{
-			ID: serializedProcess.ID,
-			Err: &ErrProcessStarting{
-				Err: err,
-			},
-		}
+		return ProcessEventStopped, nil
 	}
 	ResetUmask()
 

@@ -54,3 +54,10 @@ programs:
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
+  unknown-command:
+    cmd: "yolo"
+    autostart: true
+    autorestart: true
+    startretries: 3
+    starttime: 10
+    stoptime: 10
