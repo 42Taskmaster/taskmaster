@@ -5,6 +5,7 @@ ROOT_PATH=$PWD
 
 setUp() {
     cd $ROOT_PATH/scenarios
+    pkill taskmasterd
     git restore .
 
     true
@@ -45,7 +46,7 @@ testHotReloadUpdateProgramConfig() {
     assertTrue $?
 }
 
-testHotReloadUpdateProgramConfig() {
+testNotFoundCommand() {
     cd not-found-command
     rm -f taskmasterd.log
 
