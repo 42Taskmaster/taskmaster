@@ -140,21 +140,21 @@ func (config *ProgramConfiguration) CreateCmdStderr(processID string) (io.WriteC
 }
 
 type ProgramYaml struct {
-	Name         string           `json:"name"`
-	Cmd          *string          `yaml:"cmd,omitempty" json:"cmd,omitempty"`
-	Numprocs     *int             `yaml:"numprocs,omitempty" json:"numprocs,omitempty"`
-	Umask        *string          `yaml:"umask,omitempty" json:"umask,omitempty"`
-	Workingdir   *string          `yaml:"workingdir,omitempty" json:"workingdir,omitempty"`
-	Autostart    *bool            `yaml:"autostart,omitempty" json:"autostart,omitempty"`
-	Autorestart  *AutorestartType `yaml:"autorestart,omitempty" json:"autorestart,omitempty"`
-	Exitcodes    interface{}      `yaml:"exitcodes,omitempty" json:"exitcodes,omitempty"`
-	Startretries *int             `yaml:"startretries,omitempty" json:"startretries,omitempty"`
-	Starttime    *int             `yaml:"starttime,omitempty" json:"starttime,omitempty"`
-	Stopsignal   *StopSignal      `yaml:"stopsignal,omitempty" json:"stopsignal,omitempty"`
-	Stoptime     *int             `yaml:"stoptime,omitempty" json:"stoptime,omitempty"`
-	Stdout       *string          `yaml:"stdout,omitempty" json:"stdout,omitempty"`
-	Stderr       *string          `yaml:"stderr,omitempty" json:"stderr,omitempty"`
-	Env          map[string]string
+	Name         *string           `yaml:"-" json:"name,omitempty"`
+	Cmd          *string           `yaml:"cmd,omitempty" json:"cmd,omitempty"`
+	Numprocs     *int              `yaml:"numprocs,omitempty" json:"numprocs,omitempty"`
+	Umask        *string           `yaml:"umask,omitempty" json:"umask,omitempty"`
+	Workingdir   *string           `yaml:"workingdir,omitempty" json:"workingdir,omitempty"`
+	Autostart    *bool             `yaml:"autostart,omitempty" json:"autostart,omitempty"`
+	Autorestart  *AutorestartType  `yaml:"autorestart,omitempty" json:"autorestart,omitempty"`
+	Exitcodes    interface{}       `yaml:"exitcodes,omitempty" json:"exitcodes,omitempty"`
+	Startretries *int              `yaml:"startretries,omitempty" json:"startretries,omitempty"`
+	Starttime    *int              `yaml:"starttime,omitempty" json:"starttime,omitempty"`
+	Stopsignal   *StopSignal       `yaml:"stopsignal,omitempty" json:"stopsignal,omitempty"`
+	Stoptime     *int              `yaml:"stoptime,omitempty" json:"stoptime,omitempty"`
+	Stdout       *string           `yaml:"stdout,omitempty" json:"stdout,omitempty"`
+	Stderr       *string           `yaml:"stderr,omitempty" json:"stderr,omitempty"`
+	Env          map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
 }
 
 func (program *ProgramYaml) NormalizedExitcodes() []int {
@@ -185,7 +185,7 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if args.PickProgramName {
-		programName := strings.TrimSpace(program.Name)
+		programName := strings.TrimSpace(*program.Name)
 
 		if programName == "" {
 			return config, &ErrProgramsYamlValidation{

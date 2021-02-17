@@ -27,7 +27,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	programsConfigurations, err := configParse(configReader)
+	programsYamlConfiguration, programsConfigurations, err := configParse(configReader)
 	if err != nil {
 		log.Fatalf("Error parsing configuration file: %s: %v\n", args.ConfigPathArg, err)
 		os.Exit(1)
@@ -46,9 +46,10 @@ func main() {
 	context, cancel := context.WithCancel(context.Background())
 
 	taskmasterd := NewTaskmasterd(NewTaskmasterdArgs{
-		Args:    args,
-		Context: context,
-		Cancel:  cancel,
+		Args:                  args,
+		ProgramsConfiguration: programsYamlConfiguration,
+		Context:               context,
+		Cancel:                cancel,
 	})
 	taskmasterd.SignalsSetup()
 	go taskmasterd.LoadProgramsConfigurations(programsConfigurations)

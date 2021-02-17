@@ -252,8 +252,6 @@ func (program *Program) setConfig(task Tasker) error {
 		}
 	}
 
-	// TODO: reload the configuration of all the others processes if necessary
-
 	return nil
 }
 

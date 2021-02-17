@@ -6,7 +6,6 @@ ROOT_PATH=$PWD
 setUp() {
     cd $ROOT_PATH/scenarios
     pkill taskmasterd
-    git restore .
 
     true
 }
@@ -14,6 +13,7 @@ setUp() {
 tearDown() {
     echo $PWD
     pkill taskmasterd
+
     git restore .
 
     true
@@ -26,6 +26,10 @@ testInfinite() {
     ./test.sh
 
     assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertTrue "Files should have not been modified but were" $?
 }
 
 testHotReloadTotalNewConfig() {
@@ -35,6 +39,10 @@ testHotReloadTotalNewConfig() {
     ./test.sh
 
     assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertFalse "Files should have been modified but were not" $?
 }
 
 testHotReloadUpdateProgramConfig() {
@@ -44,6 +52,10 @@ testHotReloadUpdateProgramConfig() {
     ./test.sh
 
     assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertFalse "Files should have been modified but were not" $?
 }
 
 testNotFoundCommand() {
@@ -53,6 +65,11 @@ testNotFoundCommand() {
     ./test.sh
 
     assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertTrue "Files should have not been modified but were" $?
+
 }
 
 testCreateProgram() {
@@ -62,6 +79,10 @@ testCreateProgram() {
     ./test.sh
 
     assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertFalse "Files should have been modified but were not" $?
 }
 
 . ./vendor/shunit2/shunit2

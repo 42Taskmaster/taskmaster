@@ -34,14 +34,14 @@ requests:
     maxRetries: 2
     validate:
       - jsonpath: content.result.data
-        expect: >-
+        expect: |
           programs:
-            infinite:
-              cmd: "bin_infinite"
-              autostart: true
-              starttime: 1
             exited yeahhhh:
               cmd: bin_exited
+            infinite:
+              cmd: bin_infinite
+              autostart: true
+              starttime: 1
   newly-created-program-status:
     request:
       url: http://localhost:8080/status
