@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -56,14 +58,19 @@ func (programs *ProgramsYaml) Validate() (ProgramsConfigurations, error) {
 	}
 
 	for programName, programConfiguration := range programs.Programs {
-		err, parsedConfiguration := programConfiguration.Validate()
+		parsedConfiguration, err := programConfiguration.Validate(ProgramYamlValidateArgs{})
 		if err == nil {
 			parsedConfiguration.Name = programName
 			programsConfigurations[programName] = parsedConfiguration
 			continue
 		}
 
-		err.Field = "Programs[" + programName + "]." + err.Field
+		var validationErr *ErrProgramsYamlValidation
+		if errors.As(err, &validationErr) {
+			validationErr.Field = "Programs[" + programName + "]." + validationErr.Field
+			return nil, validationErr
+		}
+
 		return nil, err
 	}
 
@@ -133,20 +140,20 @@ func (config *ProgramConfiguration) CreateCmdStderr(processID string) (io.WriteC
 }
 
 type ProgramYaml struct {
-	Name         string
-	Cmd          *string          `yaml:"cmd,omitempty"`
-	Numprocs     *int             `yaml:"numprocs,omitempty"`
-	Umask        *string          `yaml:"umask,omitempty"`
-	Workingdir   *string          `yaml:"workingdir,omitempty"`
-	Autostart    *bool            `yaml:"autostart,omitempty"`
-	Autorestart  *AutorestartType `yaml:"autorestart,omitempty"`
-	Exitcodes    interface{}      `yaml:"exitcodes,omitempty"`
-	Startretries *int             `yaml:"startretries,omitempty"`
-	Starttime    *int             `yaml:"starttime,omitempty"`
-	Stopsignal   *StopSignal      `yaml:"stopsignal,omitempty"`
-	Stoptime     *int             `yaml:"stoptime,omitempty"`
-	Stdout       *string          `yaml:"stdout,omitempty"`
-	Stderr       *string          `yaml:"stderr,omitempty"`
+	Name         string           `json:"name"`
+	Cmd          *string          `yaml:"cmd,omitempty" json:"cmd,omitempty"`
+	Numprocs     *int             `yaml:"numprocs,omitempty" json:"numprocs,omitempty"`
+	Umask        *string          `yaml:"umask,omitempty" json:"umask,omitempty"`
+	Workingdir   *string          `yaml:"workingdir,omitempty" json:"workingdir,omitempty"`
+	Autostart    *bool            `yaml:"autostart,omitempty" json:"autostart,omitempty"`
+	Autorestart  *AutorestartType `yaml:"autorestart,omitempty" json:"autorestart,omitempty"`
+	Exitcodes    interface{}      `yaml:"exitcodes,omitempty" json:"exitcodes,omitempty"`
+	Startretries *int             `yaml:"startretries,omitempty" json:"startretries,omitempty"`
+	Starttime    *int             `yaml:"starttime,omitempty" json:"starttime,omitempty"`
+	Stopsignal   *StopSignal      `yaml:"stopsignal,omitempty" json:"stopsignal,omitempty"`
+	Stoptime     *int             `yaml:"stoptime,omitempty" json:"stoptime,omitempty"`
+	Stdout       *string          `yaml:"stdout,omitempty" json:"stdout,omitempty"`
+	Stderr       *string          `yaml:"stderr,omitempty" json:"stderr,omitempty"`
 	Env          map[string]string
 }
 
@@ -165,7 +172,11 @@ func (program *ProgramYaml) NormalizedExitcodes() []int {
 	}
 }
 
-func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfiguration) {
+type ProgramYamlValidateArgs struct {
+	PickProgramName bool
+}
+
+func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfiguration, error) {
 	const HourInSeconds = 60 * 60
 
 	config := ProgramConfiguration{
@@ -173,11 +184,24 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 		Env:       program.Env,
 	}
 
+	if args.PickProgramName {
+		programName := strings.TrimSpace(program.Name)
+
+		if programName == "" {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Name",
+				Issue: ValidationIssueEmptyField,
+			}
+		}
+
+		config.Name = programName
+	}
+
 	if program.Cmd == nil {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Cmd",
 			Issue: ValidationIssueEmptyField,
-		}, config
+		}
 	}
 
 	config.Cmd = *program.Cmd
@@ -185,10 +209,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	if program.Numprocs == nil {
 		config.Numprocs = 1
 	} else if *program.Numprocs < 0 || *program.Numprocs > 100 {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Numprocs",
 			Issue: ValidationIssueValueOutsideBounds,
-		}, config
+		}
 	} else {
 		config.Numprocs = *program.Numprocs
 	}
@@ -204,10 +228,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	} else if !(*program.Autorestart == AutorestartOn ||
 		*program.Autorestart == AutorestartOff ||
 		*program.Autorestart == AutorestartUnexpected) {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Autorestart",
 			Issue: ValidationIssueUnexpectedValue,
-		}, config
+		}
 	} else {
 		config.Autorestart = *program.Autorestart
 	}
@@ -215,10 +239,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	if program.Starttime == nil {
 		config.Starttime = 5
 	} else if *program.Starttime < 0 || *program.Starttime > HourInSeconds {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Starttime",
 			Issue: ValidationIssueValueOutsideBounds,
-		}, config
+		}
 	} else {
 		config.Starttime = *program.Starttime
 	}
@@ -226,10 +250,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	if program.Startretries == nil {
 		config.Startretries = 3
 	} else if *program.Startretries < 0 || *program.Startretries > 20 {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Startretries",
 			Issue: ValidationIssueValueOutsideBounds,
-		}, config
+		}
 	} else {
 		config.Startretries = *program.Startretries
 	}
@@ -237,10 +261,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	if program.Stopsignal == nil {
 		config.Stopsignal = StopSignalTerm
 	} else if !program.Stopsignal.Valid() {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Stopsignal",
 			Issue: ValidationIssueUnexpectedValue,
-		}, config
+		}
 	} else {
 		config.Stopsignal = *program.Stopsignal
 	}
@@ -248,10 +272,10 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 	if program.Stoptime == nil {
 		config.Stoptime = 10
 	} else if *program.Stoptime < 0 || *program.Stoptime > HourInSeconds {
-		return &ErrProgramsYamlValidation{
+		return config, &ErrProgramsYamlValidation{
 			Field: "Stoptime",
 			Issue: ValidationIssueValueOutsideBounds,
-		}, config
+		}
 	} else {
 		config.Stoptime = *program.Stoptime
 	}
@@ -268,7 +292,7 @@ func (program *ProgramYaml) Validate() (*ErrProgramsYamlValidation, ProgramConfi
 		config.Stderr = *program.Stderr
 	}
 
-	return nil, config
+	return config, nil
 }
 
 func yamlParse(r io.Reader) (ProgramsYaml, error) {

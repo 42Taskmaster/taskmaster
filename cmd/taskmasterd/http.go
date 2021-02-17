@@ -24,6 +24,7 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/stop":          httpEndpointStop,
 	"/restart":       httpEndpointRestart,
 	"/configuration": httpEndpointConfiguration,
+	"/programs":      httpEndpointCreateProgram,
 	"/logs":          httpEndpointLogs,
 	"/shutdown":      httpEndpointShutdown,
 	"/":              httpNotFound,
@@ -326,6 +327,48 @@ func httpEndpointLogs(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.R
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+type HttpCreateProgramInputJSON struct {
+	ProgramYaml
+}
+
+func RespondJSON(resp HttpJSONResponse, w http.ResponseWriter) {
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(resp); err != nil {
+		return
+	}
+}
+
+func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var newProgramConfiguration HttpCreateProgramInputJSON
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&newProgramConfiguration); err != nil {
+		RespondJSON(HttpJSONResponse{
+			Error: err.Error(),
+		}, w)
+		return
+	}
+
+	configuration, err := newProgramConfiguration.Validate(ProgramYamlValidateArgs{
+		PickProgramName: true,
+	})
+	if err != nil {
+		RespondJSON(HttpJSONResponse{
+			Error: err.Error(),
+		}, w)
+		return
+	}
+
+	taskmasterd.LoadProgramConfiguration(configuration)
+
+	RespondJSON(HttpJSONResponse{}, w)
 }
 
 func httpEndpointShutdown(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {

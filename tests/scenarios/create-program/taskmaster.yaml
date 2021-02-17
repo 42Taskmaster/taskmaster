@@ -1,0 +1,5 @@
+programs:
+  infinite:
+    cmd: "bin_infinite"
+    autostart: true
+    starttime: 1

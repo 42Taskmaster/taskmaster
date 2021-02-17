@@ -55,4 +55,13 @@ testNotFoundCommand() {
     assertTrue $?
 }
 
+testCreateProgram() {
+    cd create-program
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+}
+
 . ./vendor/shunit2/shunit2
