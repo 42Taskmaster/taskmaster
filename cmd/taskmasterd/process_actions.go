@@ -142,18 +142,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 			)
 		}
 
-		event := ProcessEventStopped
-		if cmd.ProcessState.Exited() {
-			log.Printf(
-				"Process '%s' of program '%s' has exited with code %d",
-				serializedProcess.ID,
-				config.Name,
-				cmd.ProcessState.ExitCode(),
-			)
-			event = ProcessEventExit
-		}
-
-		_, err := stateMachine.Send(event)
+		_, err := stateMachine.Send(ProcessEventStopped)
 		if err != nil {
 			log.Printf("expected no error to be returned but got %v\n", err)
 		}
@@ -217,6 +206,7 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 			)
 			return ProcessEventFatal, nil
 		}
+
 		log.Printf(
 			"Trying to restart process '%s' of program '%s'...",
 			serializedProcess.ID,
@@ -240,6 +230,45 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 			)
 			return ProcessEventFatal, nil
 		}
+
+		log.Printf(
+			"Trying to restart process '%s' of program '%s'...",
+			serializedProcess.ID,
+			config.Name,
+		)
+		return ProcessEventStart, nil
+	default:
+		return machine.NoopEvent, nil
+	}
+}
+
+func ProcessExitedAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
+	processContext := context.(*ProcessMachineContext)
+	process := processContext.Process
+
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
+
+	serializedProcess := process.Serialize()
+
+	switch config.Autorestart {
+	case AutorestartOn:
+		log.Printf(
+			"Trying to restart process '%s' of program '%s'...",
+			serializedProcess.ID,
+			config.Name,
+		)
+		return ProcessEventStart, nil
+	case AutorestartUnexpected:
+		exitcode := process.GetCmd().ProcessState.ExitCode()
+		for _, allowedExitcode := range config.Exitcodes {
+			if exitcode == allowedExitcode {
+				return machine.NoopEvent, nil
+			}
+		}
+
 		log.Printf(
 			"Trying to restart process '%s' of program '%s'...",
 			serializedProcess.ID,
