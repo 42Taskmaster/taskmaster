@@ -189,52 +189,25 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 
 	serializedProcess := process.Serialize()
 
-	switch config.Autorestart {
-	case AutorestartOn:
-		processContext.Starttries++
-		if processContext.Starttries >= config.Startretries {
-			log.Printf(
-				"Fatal: could not start process '%s' of program '%s' (%d tries)",
-				serializedProcess.ID,
-				config.Name,
-				processContext.Starttries,
-			)
-			return ProcessEventFatal, nil
-		}
-
+	if processContext.Starttries >= config.Startretries {
 		log.Printf(
-			"Trying to restart process '%s' of program '%s'...",
+			"Fatal: could not start process '%s' of program '%s' (%d tries)",
 			serializedProcess.ID,
 			config.Name,
+			processContext.Starttries,
 		)
-		return ProcessEventStart, nil
-	case AutorestartUnexpected:
-		exitcode := process.GetCmd().ProcessState.ExitCode()
-		for _, allowedExitcode := range config.Exitcodes {
-			if exitcode == allowedExitcode {
-				return machine.NoopEvent, nil
-			}
-		}
-		processContext.Starttries++
-		if processContext.Starttries >= config.Startretries {
-			log.Printf(
-				"Fatal: could not start process '%s' of program '%s' (%d tries)",
-				serializedProcess.ID,
-				config.Name,
-				processContext.Starttries,
-			)
-			return ProcessEventFatal, nil
-		}
-
-		log.Printf(
-			"Trying to restart process '%s' of program '%s'...",
-			serializedProcess.ID,
-			config.Name,
-		)
-		return ProcessEventStart, nil
-	default:
-		return machine.NoopEvent, nil
+		return ProcessEventFatal, nil
 	}
+
+	log.Printf(
+		"Trying to restart process '%s' of program '%s'...",
+		serializedProcess.ID,
+		config.Name,
+	)
+
+	processContext.Starttries++
+
+	return ProcessEventStart, nil
 }
 
 func ProcessExitedAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {

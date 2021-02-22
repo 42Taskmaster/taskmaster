@@ -52,7 +52,7 @@ requests:
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].pid
-        regex: ^0
+        expect: 0
   still-stopping-after-2-seconds:
     request:
       url: http://localhost:8080/status
@@ -68,7 +68,7 @@ requests:
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].pid
-        regex: ^0
+        expect: 0
   still-stopping-after-5-seconds:
     request:
       url: http://localhost:8080/status
@@ -84,7 +84,7 @@ requests:
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPING
       - jsonpath: content.result.programs[0].processes[0].pid
-        regex: ^0
+        expect: 0
   stopped-after-11-seconds:
     request:
       url: http://localhost:8080/status
@@ -100,4 +100,4 @@ requests:
       - jsonpath: content.result.programs[0].processes[0].state
         expect: STOPPED
       - jsonpath: content.result.programs[0].processes[0].pid
-        regex: ^0
+        expect: 0
