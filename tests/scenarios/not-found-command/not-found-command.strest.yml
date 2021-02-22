@@ -25,3 +25,5 @@ requests:
         expect: FATAL
       - jsonpath: content.result.programs[0].processes[0].state
         expect: FATAL
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^0

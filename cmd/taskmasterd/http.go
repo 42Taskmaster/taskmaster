@@ -88,9 +88,13 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 					State:         GetProgramState(processes),
 				}
 				for _, process := range processes {
+					processState := process.GetStateMachineCurrentState()
+
 					pid := 0
-					if cmd := process.GetCmd(); cmd != nil && cmd.Process != nil {
-						pid = cmd.Process.Pid
+					if processState == ProcessStateRunning {
+						if cmd := process.GetCmd(); cmd != nil && cmd.Process != nil {
+							pid = cmd.Process.Pid
+						}
 					}
 
 					serializedProcess := process.Serialize()
@@ -98,7 +102,7 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 					httpProcess := HttpProcess{
 						ID:    serializedProcess.ID,
 						Pid:   pid,
-						State: process.GetStateMachineCurrentState(),
+						State: processState,
 
 						StartedAt: serializedProcess.StartedAt,
 						EndedAt:   serializedProcess.EndedAt,

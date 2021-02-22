@@ -25,6 +25,8 @@ requests:
         expect: RUNNING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
   hot-reload:
     request:
       url: http://localhost:8080/configuration
@@ -54,3 +56,5 @@ requests:
         expect: RUNNING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        regex: ^[1-9]
