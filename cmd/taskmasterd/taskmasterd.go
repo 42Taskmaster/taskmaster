@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const VERSION = "1.0.0"
+
 var ErrProgramNotFound = errors.New("program not found")
 
 type Taskmasterd struct {

@@ -1,0 +1,10 @@
+requests:
+  get-version:
+    request:
+      url: http://localhost:8080/version
+      method: GET
+    validate:
+      - jsonpath: status
+        expect: 200
+      - jsonpath: content.result
+        expect: "1.0.0"
