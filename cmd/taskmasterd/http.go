@@ -28,6 +28,7 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/programs":      httpEndpointCreateProgram,
 	"/logs":          httpEndpointLogs,
 	"/shutdown":      httpEndpointShutdown,
+	"/version":       httpEndpointVersion,
 	"/":              httpNotFound,
 }
 
@@ -371,6 +372,17 @@ func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 			Error: err.Error(),
 		}, w)
 
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointVersion(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		RespondJSON(HttpJSONResponse{
+			Result: VERSION,
+		}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
