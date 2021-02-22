@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 var (
 	ErrChannelClosed = errors.New("channel has been closed")
@@ -17,10 +20,16 @@ func (task TaskAction) GetAction() TaskAction {
 }
 
 const (
-	TaskmasterdTaskActionGet    TaskAction = "TASKMASTERD_GET"
-	TaskmasterdTaskActionGetAll TaskAction = "TASKMASTERD_GET_ALL"
-	TaskmasterdTaskActionAdd    TaskAction = "TASKMASTERD_ADD"
-	TaskmasterdTaskActionRemove TaskAction = "TASKMASTERD_REMOVE"
+	TaskmasterdTaskActionGet                                       TaskAction = "TASKMASTERD_GET"
+	TaskmasterdTaskActionGetAll                                    TaskAction = "TASKMASTERD_GET_ALL"
+	TaskmasterdTaskActionAdd                                       TaskAction = "TASKMASTERD_ADD"
+	TaskmasterdTaskActionRemove                                    TaskAction = "TASKMASTERD_REMOVE"
+	TaskmasterdTaskActionAddProgramConfiguration                   TaskAction = "TASKMASTERD_ADD_PROGRAM_CONFIGURATION"
+	TaskmasterdTaskActionReplaceProgramsConfigurations             TaskAction = "TASKMASTERD_REPLACE_PROGRAMS_CONFIGURATIONS"
+	TaskmasterdTaskActionRefreshConfigurationFromConfigurationFile TaskAction = "TASKMASTERD_REFRESH_CONFIGURATION_FROM_CONFIGURATION_FILE"
+	TaskmasterdTaskActionRefreshConfigurationFromReader            TaskAction = "TASKMASTERD_REFRESH_CONFIGURATION_FROM_READER"
+	TaskmasterdTaskActionGetProgramsConfigurations                 TaskAction = "TASKMASTERD_GET_PROGRAMS_CONFIGURATIONS"
+	TaskmasterdTaskActionPersistProgramsToDisk                     TaskAction = "TASKMASTERD_PERSIST_PROGRAMS_TO_DISK"
 
 	ProgramTaskActionGet            TaskAction = "PROGRAM_GET"
 	ProgramTaskActionGetAll         TaskAction = "PROGRAM_GET_ALL"
@@ -87,6 +96,32 @@ type TaskmasterdTaskAdd struct {
 	TaskBase
 
 	Program Program
+}
+
+type TaskmasterdTaskAddProgramConfiguration struct {
+	TaskBase
+
+	ProgramConfiguration ProgramYaml
+	ErrorChan            chan<- error
+}
+
+type TaskmasterdTaskReplaceProgramsConfigurations struct {
+	TaskBase
+
+	ProgramsConfigurations ProgramsYaml
+}
+
+type TaskmasterdTaskGetProgramsConfigurations struct {
+	TaskBase
+
+	ProgramsConfigurationsChan chan<- ProgramsYaml
+}
+
+type TaskmasterdTaskRefreshConfigurationFromReader struct {
+	TaskBase
+
+	Reader    io.Reader
+	ErrorChan chan<- error
 }
 
 type ProgramTask struct {

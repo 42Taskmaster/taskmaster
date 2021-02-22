@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/42Taskmaster/taskmaster/machine"
+	"gopkg.in/yaml.v2"
 )
 
 type HttpHandleFunc func(http.ResponseWriter, *http.Request)
@@ -24,6 +25,7 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/stop":          httpEndpointStop,
 	"/restart":       httpEndpointRestart,
 	"/configuration": httpEndpointConfiguration,
+	"/programs":      httpEndpointCreateProgram,
 	"/logs":          httpEndpointLogs,
 	"/shutdown":      httpEndpointShutdown,
 	"/":              httpNotFound,
@@ -32,6 +34,10 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 type HttpJSONResponse struct {
 	Error  string      `json:"error,omitempty"`
 	Result interface{} `json:"result,omitempty"`
+}
+
+type HttpProgramNameInputJSON struct {
+	ProgramID string `json:"program_id"`
 }
 
 type HttpPrograms struct {
@@ -53,6 +59,11 @@ type HttpProcess struct {
 	StartedAt time.Time `json:"startedAt"`
 	EndedAt   time.Time `json:"endedAt"`
 }
+
+type HttpConfigurationEndpointInputJSON struct {
+	ConfigurationData string `json:"data"`
+}
+
 type HttpConfiguration struct {
 	Data string `json:"data"`
 }
@@ -61,98 +72,111 @@ type HttpLogs struct {
 	Data string `json:"data"`
 }
 
+type HttpCreateProgramInputJSON struct {
+	ProgramYaml
+}
+
+func RespondJSON(resp HttpJSONResponse, w http.ResponseWriter) {
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(resp); err != nil {
+		return
+	}
+}
+
 func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		httpJSONResponse := HttpJSONResponse{}
-
 		programs, err := taskmasterd.GetSortedPrograms()
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			httpPrograms := HttpPrograms{}
-			for _, program := range programs {
-				processes, err := program.GetSortedProcesses()
-				if err != nil {
-					httpJSONResponse.Error = err.Error()
-					break
-				}
-				config, err := program.GetConfig()
-				if err != nil {
-					httpJSONResponse.Error = err.Error()
-					break
-				}
-				httpProgram := HttpProgram{
-					Id:            program.configuration.Name,
-					Configuration: config,
-					State:         GetProgramState(processes),
-				}
-				for _, process := range processes {
-					processState := process.GetStateMachineCurrentState()
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
 
-					pid := 0
-					if processState == ProcessStateRunning {
-						if cmd := process.GetCmd(); cmd != nil && cmd.Process != nil {
-							pid = cmd.Process.Pid
-						}
-					}
-
-					serializedProcess := process.Serialize()
-
-					httpProcess := HttpProcess{
-						ID:    serializedProcess.ID,
-						Pid:   pid,
-						State: processState,
-
-						StartedAt: serializedProcess.StartedAt,
-						EndedAt:   serializedProcess.EndedAt,
-					}
-					httpProgram.Processes = append(httpProgram.Processes, httpProcess)
-				}
-				httpPrograms.Programs = append(httpPrograms.Programs, httpProgram)
+		httpPrograms := HttpPrograms{}
+		for _, program := range programs {
+			processes, err := program.GetSortedProcesses()
+			if err != nil {
+				RespondJSON(HttpJSONResponse{
+					Error: err.Error(),
+				}, w)
+				return
 			}
-			httpJSONResponse.Result = httpPrograms
+
+			config, err := program.GetConfig()
+			if err != nil {
+				RespondJSON(HttpJSONResponse{
+					Error: err.Error(),
+				}, w)
+				return
+			}
+
+			httpProgram := HttpProgram{
+				Id:            program.configuration.Name,
+				Configuration: config,
+				State:         GetProgramState(processes),
+			}
+
+			for _, process := range processes {
+				processState := process.GetStateMachineCurrentState()
+
+				pid := 0
+				if processState == ProcessStateRunning {
+					if cmd := process.GetCmd(); cmd != nil && cmd.Process != nil {
+						pid = cmd.Process.Pid
+					}
+				}
+
+				serializedProcess := process.Serialize()
+
+				httpProcess := HttpProcess{
+					ID:    serializedProcess.ID,
+					Pid:   pid,
+					State: processState,
+
+					StartedAt: serializedProcess.StartedAt,
+					EndedAt:   serializedProcess.EndedAt,
+				}
+
+				httpProgram.Processes = append(httpProgram.Processes, httpProcess)
+			}
+
+			httpPrograms.Programs = append(httpPrograms.Programs, httpProgram)
 		}
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
-		}
-		w.Write(json)
+
+		RespondJSON(HttpJSONResponse{
+			Result: httpPrograms,
+		}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-type HttpProgramNameInputJSON struct {
-	ProgramID string `json:"program_id"`
-}
-
 func httpEndpointStart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var (
-			input            HttpProgramNameInputJSON
-			httpJSONResponse HttpJSONResponse
-		)
+		var input HttpProgramNameInputJSON
 
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&input); err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
 
 		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			program.Start()
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
-		}
-		w.Write(json)
+		program.Start()
+
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -161,29 +185,27 @@ func httpEndpointStart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.
 func httpEndpointStop(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var (
-			input            HttpProgramNameInputJSON
-			httpJSONResponse HttpJSONResponse
-		)
+		var input HttpProgramNameInputJSON
 
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&input); err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
 
 		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			program.Stop()
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
-		}
-		w.Write(json)
+		program.Stop()
+
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -192,93 +214,91 @@ func httpEndpointStop(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.R
 func httpEndpointRestart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var (
-			input            HttpProgramNameInputJSON
-			httpJSONResponse HttpJSONResponse
-		)
+		var input HttpProgramNameInputJSON
 
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&input); err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
 
 		program, err := taskmasterd.GetProgramById(input.ProgramID)
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			program.Restart()
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
-		}
-		w.Write(json)
+		program.Restart()
+
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-type HttpConfigurationEndpointInputJSON struct {
-	ConfigurationData string `json:"data"`
-}
-
 func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		var (
-			httpJSONResponse HttpJSONResponse
-		)
+		programsConfigurationsChan := make(chan ProgramsYaml)
 
-		configFileData, err := ioutil.ReadFile(taskmasterd.Args.ConfigPathArg)
-		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			httpJSONResponse.Result = HttpConfiguration{
-				Data: string(configFileData),
-			}
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskGetProgramsConfigurations{
+			TaskBase: TaskBase{
+				Action: TaskmasterdTaskActionGetProgramsConfigurations,
+			},
+			ProgramsConfigurationsChan: programsConfigurationsChan,
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
+		programsConfigurations := <-programsConfigurationsChan
+
+		programsConfigurationsBuffer, err := yaml.Marshal(programsConfigurations)
 		if err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
-		w.Write(json)
+
+		RespondJSON(HttpJSONResponse{
+			Result: HttpConfiguration{
+				Data: string(programsConfigurationsBuffer),
+			},
+		}, w)
 	case "PUT":
-		var (
-			input            HttpConfigurationEndpointInputJSON
-			httpJSONResponse HttpJSONResponse
-		)
+		var input HttpConfigurationEndpointInputJSON
 
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&input); err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
 
 		reader := strings.NewReader(input.ConfigurationData)
+		errorChan := make(chan error)
 
-		programsConfigurations, err := configParse(reader)
-		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			configFile, err := os.OpenFile(taskmasterd.Args.ConfigPathArg, os.O_CREATE|os.O_WRONLY, 0644)
-			if err != nil {
-				httpJSONResponse.Error = err.Error()
-			} else {
-				configFile.Truncate(0)
-				configFile.WriteString(input.ConfigurationData)
-				configFile.Close()
-				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
-			}
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskRefreshConfigurationFromReader{
+			TaskBase: TaskBase{
+				Action: TaskmasterdTaskActionRefreshConfigurationFromReader,
+			},
+			Reader:    reader,
+			ErrorChan: errorChan,
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
+		err := <-errorChan
+
 		if err != nil {
-			log.Panic(err)
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
-		w.Write(json)
+
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -287,42 +307,70 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 func httpEndpointLogs(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		var (
-			httpJSONResponse HttpJSONResponse
-		)
-
 		configFileData, err := ioutil.ReadFile(taskmasterd.Args.LogPathArg)
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			httpJSONResponse.Result = HttpLogs{
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		RespondJSON(HttpJSONResponse{
+			Result: HttpLogs{
 				Data: string(configFileData),
-			}
-		}
-
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
-		}
-		w.Write(json)
+			},
+		}, w)
 	case "DELETE":
-		var (
-			httpJSONResponse HttpJSONResponse
-		)
-
 		configFile, err := os.OpenFile(taskmasterd.Args.LogPathArg, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			httpJSONResponse.Error = err.Error()
-		} else {
-			configFile.Truncate(0)
-			configFile.Close()
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
 
-		json, err := json.Marshal(httpJSONResponse)
-		if err != nil {
-			log.Panic(err)
+		configFile.Truncate(0)
+		configFile.Close()
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		var newProgramConfiguration HttpCreateProgramInputJSON
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&newProgramConfiguration); err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
 		}
-		w.Write(json)
+
+		errorChan := make(chan error)
+
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskAddProgramConfiguration{
+			TaskBase: TaskBase{
+				Action: TaskmasterdTaskActionAddProgramConfiguration,
+			},
+			ProgramConfiguration: newProgramConfiguration.ProgramYaml,
+			ErrorChan:            errorChan,
+		}
+
+		err := <-errorChan
+		if err == nil {
+			RespondJSON(HttpJSONResponse{}, w)
+			return
+		}
+
+		RespondJSON(HttpJSONResponse{
+			Error: err.Error(),
+		}, w)
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -347,8 +395,9 @@ func httpHandleEndpoint(taskmasterd *Taskmasterd, callback HttpEndpointFunc) Htt
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method != "OPTIONS" {
+			w.Header().Set("Content-Type", "application/json")
 			callback(taskmasterd, w, r)
 		}
 	}

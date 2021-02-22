@@ -34,13 +34,13 @@ func configGetFileReader(path string) (io.ReadCloser, error) {
 	return os.Open(path)
 }
 
-func configParse(r io.Reader) (ProgramsConfigurations, error) {
+func configParse(r io.Reader) (ProgramsYaml, ProgramsConfigurations, error) {
 	parsedPrograms, err := yamlParse(r)
 	if err != nil {
-		return nil, err
+		return ProgramsYaml{}, nil, err
 	}
 
 	programsConfigurations, err := parsedPrograms.Validate()
 
-	return programsConfigurations, err
+	return parsedPrograms, programsConfigurations, err
 }

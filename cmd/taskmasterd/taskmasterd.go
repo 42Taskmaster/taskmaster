@@ -4,13 +4,18 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
 	"sort"
+
+	"gopkg.in/yaml.v2"
 )
 
 var ErrProgramNotFound = errors.New("program not found")
 
 type Taskmasterd struct {
 	Args Args
+
+	ProgramsConfiguration ProgramsYaml
 
 	ProgramTaskChan chan Tasker
 
@@ -21,18 +26,20 @@ type Taskmasterd struct {
 }
 
 type NewTaskmasterdArgs struct {
-	Args    Args
-	Context context.Context
-	Cancel  context.CancelFunc
+	Args                  Args
+	ProgramsConfiguration ProgramsYaml
+	Context               context.Context
+	Cancel                context.CancelFunc
 }
 
 func NewTaskmasterd(args NewTaskmasterdArgs) *Taskmasterd {
 	taskmasterd := &Taskmasterd{
-		Args:            args.Args,
-		Context:         args.Context,
-		Cancel:          args.Cancel,
-		ProgramTaskChan: make(chan Tasker),
-		Closed:          make(chan struct{}),
+		Args:                  args.Args,
+		ProgramsConfiguration: args.ProgramsConfiguration,
+		Context:               args.Context,
+		Cancel:                args.Cancel,
+		ProgramTaskChan:       make(chan Tasker),
+		Closed:                make(chan struct{}),
 	}
 
 	go taskmasterd.WaitDeath()
@@ -117,8 +124,84 @@ func (taskmasterd *Taskmasterd) Monitor() {
 			program := programs[taskmasterdTask.ProgramID]
 			delete(programs, taskmasterdTask.ProgramID)
 			program.Stop()
+
+		case TaskmasterdTaskActionGetProgramsConfigurations:
+			getProgramsConfigurationsTask := task.(TaskmasterdTaskGetProgramsConfigurations)
+
+			getProgramsConfigurationsTask.ProgramsConfigurationsChan <- taskmasterd.ProgramsConfiguration
+
+		case TaskmasterdTaskActionRefreshConfigurationFromConfigurationFile:
+			configReader, err := configGetFileReader(taskmasterd.Args.ConfigPathArg)
+			if err != nil {
+				// TODO: improve log
+				log.Println("could not get config file reader", err)
+				break
+			}
+
+			programsYamlConfiguration, programsConfigurations, err := configParse(configReader)
+
+			taskmasterd.ProgramsConfiguration = programsYamlConfiguration
+
+			go taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+
+		case TaskmasterdTaskActionAddProgramConfiguration:
+			addProgramConfigurationTask := task.(TaskmasterdTaskAddProgramConfiguration)
+			programConfiguration := addProgramConfigurationTask.ProgramConfiguration
+
+			configuration, err := programConfiguration.Validate(ProgramYamlValidateArgs{
+				PickProgramName: true,
+			})
+			if err != nil {
+				addProgramConfigurationTask.ErrorChan <- err
+				break
+			}
+
+			go taskmasterd.LoadProgramConfiguration(configuration)
+
+			taskmasterd.ProgramsConfiguration.Programs[configuration.Name] = programConfiguration
+
+			if err := taskmasterd.PersistProgramsConfigurationsToDisk(); err != nil {
+				addProgramConfigurationTask.ErrorChan <- err
+				break
+			}
+
+			close(addProgramConfigurationTask.ErrorChan)
+
+		case TaskmasterdTaskActionRefreshConfigurationFromReader:
+			refreshConfigurationFromReaderTask := task.(TaskmasterdTaskRefreshConfigurationFromReader)
+
+			programsYamlConfiguration, programsConfigurations, err := configParse(refreshConfigurationFromReaderTask.Reader)
+			if err != nil {
+				refreshConfigurationFromReaderTask.ErrorChan <- err
+				break
+			}
+
+			taskmasterd.ProgramsConfiguration = programsYamlConfiguration
+
+			go taskmasterd.LoadProgramsConfigurations(programsConfigurations)
+
+			if err := taskmasterd.PersistProgramsConfigurationsToDisk(); err != nil {
+				refreshConfigurationFromReaderTask.ErrorChan <- err
+				break
+			}
+
+			close(refreshConfigurationFromReaderTask.ErrorChan)
 		}
 	}
+}
+
+func (taskmasterd *Taskmasterd) PersistProgramsConfigurationsToDisk() error {
+	file, err := os.OpenFile(taskmasterd.Args.ConfigPathArg, os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+
+	encoder := yaml.NewEncoder(file)
+	if err := encoder.Encode(taskmasterd.ProgramsConfiguration); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (taskmasterd *Taskmasterd) LoadProgramConfiguration(config ProgramConfiguration) error {

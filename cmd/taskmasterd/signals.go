@@ -82,21 +82,12 @@ func (taskmasterd *Taskmasterd) SignalsExitSetup() {
 func (taskmasterd *Taskmasterd) SignalSighupSetup() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGHUP)
-	go func() {
-		for {
-			<-sigs
-			log.Print("SIGHUP received, reloading configuration file")
-			configReader, err := configGetFileReader(taskmasterd.Args.ConfigPathArg)
-			if err != nil {
-				log.Panic(err)
-			}
 
-			programsConfigurations, err := configParse(configReader)
-			if err != nil {
-				log.Printf("Error parsing configuration file: %s: %v\n", taskmasterd.Args.ConfigPathArg, err)
-			} else {
-				taskmasterd.LoadProgramsConfigurations(programsConfigurations)
-			}
+	go func() {
+		for range sigs {
+			log.Print("SIGHUP received, reloading configuration file")
+
+			taskmasterd.ProgramTaskChan <- TaskmasterdTaskActionRefreshConfigurationFromConfigurationFile
 		}
 	}()
 }

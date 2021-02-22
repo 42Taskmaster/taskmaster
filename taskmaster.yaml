@@ -1,31 +1,13 @@
 programs:
-  infinite:
-    cmd: "./tests/bin_infinite"
-    numprocs: 3
-    umask: 022
-    workingdir: /tmp
-    autostart: true
-    autorestart: true
-    exitcodes:
-      - 2
-    startretries: 3
-    starttime: 10
-    stopsignal: QUIT
-    stoptime: 10
-    stdout: /tmp/nginx.stdout
-    stderr: /tmp/nginx.stderr
-    env:
-      STARTED_BY: taskmaster
-      ANSWER: 42
   backoff:
-    cmd: "./tests/bin_backoff"
+    cmd: ./tests/bin_backoff
     numprocs: 1
-    umask: 022
+    umask: "022"
     workingdir: /tmp
     autostart: true
-    autorestart: true
+    autorestart: "true"
     exitcodes:
-      - 2
+    - 2
     startretries: 3
     starttime: 10
     stopsignal: QUIT
@@ -33,18 +15,18 @@ programs:
     stdout: /tmp/nginx.stdout
     stderr: /tmp/nginx.stderr
     env:
+      ANSWER: "42"
       STARTED_BY: taskmaster
-      ANSWER: 42
   exited:
-    cmd: "./tests/bin_exited"
+    cmd: ./tests/bin_exited
     numprocs: 1
-    umask: 022
+    umask: "022"
     workingdir: /tmp
     autostart: true
     autorestart: unexpected
     exitcodes:
-      - 0
-      - 2
+    - 0
+    - 2
     startretries: 3
     starttime: 10
     stopsignal: QUIT
@@ -52,12 +34,32 @@ programs:
     stdout: /tmp/nginx.stdout
     stderr: /tmp/nginx.stderr
     env:
+      ANSWER: "42"
       STARTED_BY: taskmaster
-      ANSWER: 42
-  unknown-command:
-    cmd: "yolo"
+  exited yeahhhh:
+    cmd: ./tests/bin_exited
+  infinite:
+    cmd: ./tests/bin_infinite
+    numprocs: 3
+    umask: "022"
+    workingdir: /tmp
     autostart: true
-    autorestart: true
+    autorestart: "true"
+    exitcodes:
+    - 2
+    startretries: 3
+    starttime: 10
+    stopsignal: QUIT
+    stoptime: 10
+    stdout: /tmp/nginx.stdout
+    stderr: /tmp/nginx.stderr
+    env:
+      ANSWER: "42"
+      STARTED_BY: taskmaster
+  unknown-command:
+    cmd: yolo
+    autostart: true
+    autorestart: "true"
     startretries: 3
     starttime: 10
     stoptime: 10
