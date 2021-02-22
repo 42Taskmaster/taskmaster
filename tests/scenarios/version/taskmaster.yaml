@@ -1,0 +1,8 @@
+programs:
+  unknown-command:
+    cmd: "yolo"
+    autostart: false
+    autorestart: true
+    startretries: 3
+    starttime: 10
+    stoptime: 10

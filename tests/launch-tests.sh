@@ -85,4 +85,17 @@ testCreateProgram() {
     assertFalse "Files should have been modified but were not" $?
 }
 
+testVersionProgram() {
+    cd version
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertTrue "Files should have not been modified but were" $?
+}
+
 . ./vendor/shunit2/shunit2
