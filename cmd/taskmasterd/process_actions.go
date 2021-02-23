@@ -87,7 +87,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 	}
 	cmd.Stderr = stderr
 
-	process.SetStdoutStderrCloser(stdout.Close, stderr.Close)
+	process.SetStdoutStderrCloser(stdout, stderr)
 
 	cmd.Dir = config.Workingdir
 

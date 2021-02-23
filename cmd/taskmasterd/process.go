@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os/exec"
 	"syscall"
 	"time"
@@ -21,7 +22,7 @@ type Processer interface {
 	GetStateMachineCurrentState() machine.StateType
 	GetCmd() *exec.Cmd
 	SetCmd(*exec.Cmd)
-	SetStdoutStderrCloser(stdoutClose, stderrClose func() error)
+	SetStdoutStderrCloser(stdout, stderr io.WriteCloser)
 	CloseFileDescriptors() error
 	StartChronometer()
 	StopChronometer()
@@ -193,14 +194,18 @@ func (process *Process) monitor() {
 				taskWithResponse := task.(ProcessInternalTaskWithResponse)
 				responseChan := taskWithResponse.ResponseChan
 
-				if err := process.stdoutClose(); err != nil {
-					responseChan <- err
-					break
+				if process.stdoutClose != nil {
+					if err := process.stdoutClose(); err != nil {
+						responseChan <- err
+						break
+					}
 				}
 
-				if err := process.stderrClose(); err != nil {
-					responseChan <- err
-					break
+				if process.stderrClose != nil {
+					if err := process.stderrClose(); err != nil {
+						responseChan <- err
+						break
+					}
 				}
 
 				responseChan <- nil
@@ -436,7 +441,14 @@ func (process *Process) SetCmd(cmd *exec.Cmd) {
 	}()
 }
 
-func (process *Process) SetStdoutStderrCloser(stdoutClose, stderrClose func() error) {
+func (process *Process) SetStdoutStderrCloser(stdout, stderr io.WriteCloser) {
+	var stdoutClose, stderrClose func() error
+	if stdout != nil {
+		stdoutClose = stdout.Close
+	}
+	if stderr != nil {
+		stderrClose = stderr.Close
+	}
 	go func() {
 		select {
 		case process.internalMonitorChannel <- ProcessInternalTaskWithPayload{
