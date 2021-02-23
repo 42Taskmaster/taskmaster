@@ -164,7 +164,12 @@ func (program *ProgramYaml) NormalizedExitcodes() []int {
 	case []interface{}:
 		var exitcodesSlice []int
 		for _, exitcode := range exitcodes {
-			exitcodesSlice = append(exitcodesSlice, exitcode.(int))
+			float, ok := exitcode.(float64)
+			if ok {
+				exitcodesSlice = append(exitcodesSlice, int(float))
+			} else {
+				exitcodesSlice = append(exitcodesSlice, exitcode.(int))
+			}
 		}
 		return exitcodesSlice
 	default:
