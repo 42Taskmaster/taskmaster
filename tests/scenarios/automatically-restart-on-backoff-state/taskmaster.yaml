@@ -1,0 +1,11 @@
+programs:
+  exited:
+    cmd: "bin_exited"
+    autostart: false
+    autorestart: "unexpected"
+    exitcodes:
+    - 0
+    - 2
+    startretries: 2
+    starttime: 15
+    stoptime: 10

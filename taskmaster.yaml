@@ -28,7 +28,7 @@ programs:
     - 0
     - 2
     startretries: 3
-    starttime: 10
+    starttime: 12
     stopsignal: QUIT
     stoptime: 10
     stdout: /tmp/nginx.stdout

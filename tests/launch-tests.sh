@@ -72,7 +72,7 @@ testNotFoundCommand() {
 
 }
 
-testCreateProgram() {
+testCreate() {
     cd create-program
     rm -f taskmasterd.log
 
@@ -85,8 +85,21 @@ testCreateProgram() {
     assertFalse "Files should have been modified but were not" $?
 }
 
-testVersionProgram() {
+testVersion() {
     cd version
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertTrue "Files should have not been modified but were" $?
+}
+
+testAutomaticallyRestartOnBackoffState() {
+    cd automatically-restart-on-backoff-state
     rm -f taskmasterd.log
 
     ./test.sh
