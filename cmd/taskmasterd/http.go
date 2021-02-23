@@ -20,16 +20,17 @@ type HttpHandleFunc func(http.ResponseWriter, *http.Request)
 type HttpEndpointFunc func(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request)
 
 var httpEndpoints = map[string]HttpEndpointFunc{
-	"/status":        httpEndpointStatus,
-	"/start":         httpEndpointStart,
-	"/stop":          httpEndpointStop,
-	"/restart":       httpEndpointRestart,
-	"/configuration": httpEndpointConfiguration,
-	"/programs":      httpEndpointCreateProgram,
-	"/logs":          httpEndpointLogs,
-	"/shutdown":      httpEndpointShutdown,
-	"/version":       httpEndpointVersion,
-	"/":              httpNotFound,
+	"/status":                httpEndpointStatus,
+	"/start":                 httpEndpointStart,
+	"/stop":                  httpEndpointStop,
+	"/restart":               httpEndpointRestart,
+	"/configuration":         httpEndpointConfiguration,
+	"/configuration/refresh": httpEndpointRefreshConfiguration,
+	"/programs":              httpEndpointCreateProgram,
+	"/logs":                  httpEndpointLogs,
+	"/shutdown":              httpEndpointShutdown,
+	"/version":               httpEndpointVersion,
+	"/":                      httpNotFound,
 }
 
 type HttpJSONResponse struct {
@@ -298,6 +299,17 @@ func httpEndpointConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 			}, w)
 			return
 		}
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointRefreshConfiguration(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "PUT":
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskActionRefreshConfigurationFromConfigurationFile
 
 		RespondJSON(HttpJSONResponse{}, w)
 	default:
