@@ -6,6 +6,7 @@ import (
 	"log"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 type ErrProcessNotFound struct {
@@ -71,7 +72,7 @@ func NewProgram(args NewProgramArgs) Program {
 	for index := 1; index <= program.configuration.Numprocs; index++ {
 		id := strconv.Itoa(index)
 		process := NewProcess(NewProcessArgs{
-			ID:              id,
+			ID:              strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + id,
 			Context:         localContext,
 			ProgramTaskChan: program.ProcessTaskChan,
 		})
@@ -213,7 +214,7 @@ func (program *Program) setConfig(task Tasker) error {
 
 	if delta < 0 {
 		for index := newNumProcesses + 1; index <= oldNumProcess; index++ {
-			processID := strconv.Itoa(index)
+			processID := strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + strconv.Itoa(index)
 
 			process, err := program.getProcessByID(processID)
 			if err != nil {
@@ -237,7 +238,7 @@ func (program *Program) setConfig(task Tasker) error {
 		}
 	} else if delta > 0 {
 		for index := oldNumProcess + 1; index <= newNumProcesses; index++ {
-			processID := strconv.Itoa(index)
+			processID := strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + strconv.Itoa(index)
 
 			process := NewProcess(NewProcessArgs{
 				ID:              processID,
