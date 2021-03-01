@@ -24,7 +24,9 @@ const (
 	TaskmasterdTaskActionGetAll                                    TaskAction = "TASKMASTERD_GET_ALL"
 	TaskmasterdTaskActionAdd                                       TaskAction = "TASKMASTERD_ADD"
 	TaskmasterdTaskActionRemove                                    TaskAction = "TASKMASTERD_REMOVE"
-	TaskmasterdTaskActionAddProgramConfiguration                   TaskAction = "TASKMASTERD_ADD_PROGRAM_CONFIGURATION"
+	TaskmasterdTaskActionAddProgram                                TaskAction = "TASKMASTERD_ADD_PROGRAM"
+	TaskmasterdTaskActionDeleteProgram                             TaskAction = "TASKMASTERD_DELETE_PROGRAM"
+	TaskmasterdTaskActionEditProgram                               TaskAction = "TASKMASTERD_REPLACE_PROGRAM_CONFIGURATIONS"
 	TaskmasterdTaskActionReplaceProgramsConfigurations             TaskAction = "TASKMASTERD_REPLACE_PROGRAMS_CONFIGURATIONS"
 	TaskmasterdTaskActionRefreshConfigurationFromConfigurationFile TaskAction = "TASKMASTERD_REFRESH_CONFIGURATION_FROM_CONFIGURATION_FILE"
 	TaskmasterdTaskActionRefreshConfigurationFromReader            TaskAction = "TASKMASTERD_REFRESH_CONFIGURATION_FROM_READER"
@@ -98,11 +100,26 @@ type TaskmasterdTaskAdd struct {
 	Program Program
 }
 
-type TaskmasterdTaskAddProgramConfiguration struct {
+type TaskmasterdTaskAddProgram struct {
 	TaskBase
 
 	ProgramConfiguration ProgramYaml
 	ErrorChan            chan<- error
+}
+
+type TaskmasterdTaskEditProgram struct {
+	TaskBase
+
+	ProgramId            string
+	ProgramConfiguration ProgramYaml
+	ErrorChan            chan<- error
+}
+
+type TaskmasterdTaskDeleteProgram struct {
+	TaskBase
+
+	ProgramId string
+	ErrorChan chan<- error
 }
 
 type TaskmasterdTaskReplaceProgramsConfigurations struct {

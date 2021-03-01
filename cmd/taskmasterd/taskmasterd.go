@@ -146,8 +146,8 @@ func (taskmasterd *Taskmasterd) Monitor() {
 
 			go taskmasterd.LoadProgramsConfigurations(programsConfigurations)
 
-		case TaskmasterdTaskActionAddProgramConfiguration:
-			addProgramConfigurationTask := task.(TaskmasterdTaskAddProgramConfiguration)
+		case TaskmasterdTaskActionAddProgram:
+			addProgramConfigurationTask := task.(TaskmasterdTaskAddProgram)
 			programConfiguration := addProgramConfigurationTask.ProgramConfiguration
 
 			configuration, err := programConfiguration.Validate(ProgramYamlValidateArgs{
@@ -168,6 +168,46 @@ func (taskmasterd *Taskmasterd) Monitor() {
 			}
 
 			close(addProgramConfigurationTask.ErrorChan)
+
+		case TaskmasterdTaskActionEditProgram:
+			editProgramTask := task.(TaskmasterdTaskEditProgram)
+			programConfiguration := editProgramTask.ProgramConfiguration
+
+			configuration, err := programConfiguration.Validate(ProgramYamlValidateArgs{
+				PickProgramName: true,
+			})
+			if err != nil {
+				editProgramTask.ErrorChan <- err
+				break
+			}
+
+			if editProgramTask.ProgramId != configuration.Name {
+				delete(programs, editProgramTask.ProgramId)
+				delete(taskmasterd.ProgramsConfiguration.Programs, editProgramTask.ProgramId)
+			}
+
+			go taskmasterd.LoadProgramConfiguration(configuration)
+			taskmasterd.ProgramsConfiguration.Programs[configuration.Name] = programConfiguration
+
+			if err := taskmasterd.PersistProgramsConfigurationsToDisk(); err != nil {
+				editProgramTask.ErrorChan <- err
+				break
+			}
+
+			close(editProgramTask.ErrorChan)
+
+		case TaskmasterdTaskActionDeleteProgram:
+			deleteProgramTask := task.(TaskmasterdTaskDeleteProgram)
+
+			delete(programs, deleteProgramTask.ProgramId)
+			delete(taskmasterd.ProgramsConfiguration.Programs, deleteProgramTask.ProgramId)
+
+			if err := taskmasterd.PersistProgramsConfigurationsToDisk(); err != nil {
+				deleteProgramTask.ErrorChan <- err
+				break
+			}
+
+			close(deleteProgramTask.ErrorChan)
 
 		case TaskmasterdTaskActionRefreshConfigurationFromReader:
 			refreshConfigurationFromReaderTask := task.(TaskmasterdTaskRefreshConfigurationFromReader)
