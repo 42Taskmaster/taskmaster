@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -182,6 +183,12 @@ func (taskmasterd *Taskmasterd) Monitor() {
 			}
 
 			if editProgramTask.ProgramId != configuration.Name {
+				program, ok := programs[editProgramTask.ProgramId]
+				if !ok {
+					editProgramTask.ErrorChan <- fmt.Errorf("program not found")
+					break
+				}
+				program.Stop()
 				delete(programs, editProgramTask.ProgramId)
 				delete(taskmasterd.ProgramsConfiguration.Programs, editProgramTask.ProgramId)
 			}
