@@ -1,0 +1,62 @@
+requests:
+  beginning-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
+        expect: infinite
+      - jsonpath: content.result.programs[0].state
+        expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: RUNNING
+  edit-command:
+    request:
+      url: http://localhost:8080/programs/edit
+      method: POST
+      postData:
+        mimeType: application/json
+        text:
+          id: "infinite"
+          configuration:
+            name: "infinite"
+            cmd: "bin_infinite"
+            numprocs: 8
+            stopsignal: "KILL"
+            startretries: 7
+    validate:
+      - jsonpath: status
+        expect: 200
+  assure-config-has-been-written-to-the-disk:
+    request:
+      url: http://localhost:8080/configuration
+      method: GET
+    delay: 500
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.data
+        expect: |
+          programs:
+            infinite:
+              cmd: bin_infinite
+              numprocs: 8
+              startretries: 7
+              stopsignal: KILL
+  edited-program-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 15_000
+    validate:      
+      - jsonpath: content.result.programs.length
+        expect: 1
+      - jsonpath: content.result.programs[0].id
+        expect: infinite
+      - jsonpath: content.result.programs[0].state
+        expect: RUNNING
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: RUNNING

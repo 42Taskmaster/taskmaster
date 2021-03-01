@@ -107,7 +107,9 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 			return
 		}
 
-		httpPrograms := HttpPrograms{}
+		httpPrograms := HttpPrograms{
+			Programs: make([]HttpProgram, 0),
+		}
 		for _, program := range programs {
 			processes, err := program.GetSortedProcesses()
 			if err != nil {
@@ -386,15 +388,14 @@ func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 		}
 
 		err := <-errorChan
-		if err == nil {
-			RespondJSON(HttpJSONResponse{}, w)
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
-
-		RespondJSON(HttpJSONResponse{
-			Error: err.Error(),
-		}, w)
-
+		
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -425,15 +426,14 @@ func httpEndpointEditProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r 
 		}
 
 		err := <-errorChan
-		if err == nil {
-			RespondJSON(HttpJSONResponse{}, w)
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
 			return
 		}
 
-		RespondJSON(HttpJSONResponse{
-			Error: err.Error(),
-		}, w)
-
+		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
