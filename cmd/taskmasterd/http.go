@@ -26,7 +26,9 @@ var httpEndpoints = map[string]HttpEndpointFunc{
 	"/restart":               httpEndpointRestart,
 	"/configuration":         httpEndpointConfiguration,
 	"/configuration/refresh": httpEndpointRefreshConfiguration,
-	"/programs":              httpEndpointCreateProgram,
+	"/programs/create":       httpEndpointCreateProgram,
+	"/programs/edit":         httpEndpointEditProgram,
+	"/programs/delete":       httpEndpointDeleteProgram,
 	"/logs":                  httpEndpointLogs,
 	"/shutdown":              httpEndpointShutdown,
 	"/version":               httpEndpointVersion,
@@ -78,6 +80,15 @@ type HttpCreateProgramInputJSON struct {
 	ProgramYaml
 }
 
+type HttpEditProgramInputJSON struct {
+	Id            string      `json:"id"`
+	Configuration ProgramYaml `json:"configuration"`
+}
+
+type HttpDeleteProgramInputJSON struct {
+	Id string `json:"id"`
+}
+
 func RespondJSON(resp HttpJSONResponse, w http.ResponseWriter) {
 	encoder := json.NewEncoder(w)
 	if err := encoder.Encode(resp); err != nil {
@@ -96,7 +107,9 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 			return
 		}
 
-		httpPrograms := HttpPrograms{}
+		httpPrograms := HttpPrograms{
+			Programs: make([]HttpProgram, 0),
+		}
 		for _, program := range programs {
 			processes, err := program.GetSortedProcesses()
 			if err != nil {
@@ -354,10 +367,10 @@ func httpEndpointLogs(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.R
 func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
-		var newProgramConfiguration HttpCreateProgramInputJSON
+		var newProgram HttpCreateProgramInputJSON
 
 		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&newProgramConfiguration); err != nil {
+		if err := decoder.Decode(&newProgram); err != nil {
 			RespondJSON(HttpJSONResponse{
 				Error: err.Error(),
 			}, w)
@@ -366,15 +379,100 @@ func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 
 		errorChan := make(chan error)
 
-		taskmasterd.ProgramTaskChan <- TaskmasterdTaskAddProgramConfiguration{
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskAddProgram{
 			TaskBase: TaskBase{
-				Action: TaskmasterdTaskActionAddProgramConfiguration,
+				Action: TaskmasterdTaskActionAddProgram,
 			},
-			ProgramConfiguration: newProgramConfiguration.ProgramYaml,
+			ProgramConfiguration: newProgram.ProgramYaml,
 			ErrorChan:            errorChan,
 		}
 
 		err := <-errorChan
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+		
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointEditProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		var editProgram HttpEditProgramInputJSON
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&editProgram); err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		errorChan := make(chan error)
+
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskEditProgram{
+			TaskBase: TaskBase{
+				Action: TaskmasterdTaskActionEditProgram,
+			},
+			ProgramId:            editProgram.Id,
+			ProgramConfiguration: editProgram.Configuration,
+			ErrorChan:            errorChan,
+		}
+
+		err := <-errorChan
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointDeleteProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		var deleteProgram HttpDeleteProgramInputJSON
+
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&deleteProgram); err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		program, err := taskmasterd.GetProgramById(deleteProgram.Id)
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		program.Stop()
+
+		errorChan := make(chan error)
+
+		taskmasterd.ProgramTaskChan <- TaskmasterdTaskDeleteProgram{
+			TaskBase: TaskBase{
+				Action: TaskmasterdTaskActionDeleteProgram,
+			},
+			ProgramId: deleteProgram.Id,
+			ErrorChan: errorChan,
+		}
+
+		err = <-errorChan
 		if err == nil {
 			RespondJSON(HttpJSONResponse{}, w)
 			return

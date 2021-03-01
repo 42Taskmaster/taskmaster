@@ -85,6 +85,32 @@ testCreate() {
     assertFalse "Files should have been modified but were not" $?
 }
 
+testEdit() {
+    cd edit-program
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertFalse "Files should have been modified but were not" $?
+}
+
+testDelete() {
+    cd delete-program
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertFalse "Files should have been modified but were not" $?
+}
+
 testVersion() {
     cd version
     rm -f taskmasterd.log

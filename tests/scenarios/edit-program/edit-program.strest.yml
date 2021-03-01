@@ -14,15 +14,20 @@ requests:
         expect: RUNNING
       - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING
-  create-command:
+  edit-command:
     request:
-      url: http://localhost:8080/programs/create
+      url: http://localhost:8080/programs/edit
       method: POST
       postData:
         mimeType: application/json
         text:
-          name: "exited yeahhhh    "
-          cmd: "bin_exited"
+          id: "infinite"
+          configuration:
+            name: "infinite"
+            cmd: "bin_infinite"
+            numprocs: 8
+            stopsignal: "KILL"
+            startretries: 7
     validate:
       - jsonpath: status
         expect: 200
@@ -36,29 +41,22 @@ requests:
       - jsonpath: content.result.data
         expect: |
           programs:
-            exited yeahhhh:
-              cmd: bin_exited
             infinite:
               cmd: bin_infinite
-              autostart: true
-              starttime: 1
-  newly-created-program-status:
+              numprocs: 8
+              startretries: 7
+              stopsignal: KILL
+  edited-program-status:
     request:
       url: http://localhost:8080/status
       method: GET
     delay: 15_000
-    validate:
+    validate:      
       - jsonpath: content.result.programs.length
-        expect: 2
+        expect: 1
       - jsonpath: content.result.programs[0].id
-        expect: exited yeahhhh
-      - jsonpath: content.result.programs[0].state
-        expect: EXITED
-      - jsonpath: content.result.programs[0].processes[0].state
-        expect: EXITED
-      - jsonpath: content.result.programs[1].id
         expect: infinite
-      - jsonpath: content.result.programs[1].state
+      - jsonpath: content.result.programs[0].state
         expect: RUNNING
-      - jsonpath: content.result.programs[1].processes[0].state
+      - jsonpath: content.result.programs[0].processes[0].state
         expect: RUNNING

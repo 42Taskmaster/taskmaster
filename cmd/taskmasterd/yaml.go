@@ -44,7 +44,7 @@ func (err *ErrProgramsYamlValidation) Error() string {
 type ProgramsConfigurations map[string]ProgramConfiguration
 
 type ProgramsYaml struct {
-	Programs map[string]ProgramYaml `yaml:"programs,omitempty"`
+	Programs map[string]ProgramYaml `yaml:"programs"`
 }
 
 func (programs *ProgramsYaml) Validate() (ProgramsConfigurations, error) {
@@ -190,6 +190,13 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if args.PickProgramName {
+		if program.Name == nil {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Name",
+				Issue: ValidationIssueEmptyField,
+			}
+		}
+
 		programName := strings.TrimSpace(*program.Name)
 
 		if programName == "" {
