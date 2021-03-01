@@ -22,8 +22,11 @@ type HttpEndpointFunc func(taskmasterd *Taskmasterd, w http.ResponseWriter, r *h
 var httpEndpoints = map[string]HttpEndpointFunc{
 	"/status":                httpEndpointStatus,
 	"/start":                 httpEndpointStart,
+	"/start/all":             httpEndpointStartAll,
 	"/stop":                  httpEndpointStop,
+	"/stop/all":              httpEndpointStopAll,
 	"/restart":               httpEndpointRestart,
+	"/restart/all":           httpEndpointRestartAll,
 	"/configuration":         httpEndpointConfiguration,
 	"/configuration/refresh": httpEndpointRefreshConfiguration,
 	"/programs/create":       httpEndpointCreateProgram,
@@ -197,6 +200,27 @@ func httpEndpointStart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.
 	}
 }
 
+func httpEndpointStartAll(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		programs, err := taskmasterd.GetPrograms()
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		for _, program := range programs {
+			program.Start()
+		}
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 func httpEndpointStop(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -226,6 +250,27 @@ func httpEndpointStop(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.R
 	}
 }
 
+func httpEndpointStopAll(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		programs, err := taskmasterd.GetPrograms()
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		for _, program := range programs {
+			program.Stop()
+		}
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 func httpEndpointRestart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -248,6 +293,27 @@ func httpEndpointRestart(taskmasterd *Taskmasterd, w http.ResponseWriter, r *htt
 		}
 
 		program.Restart()
+
+		RespondJSON(HttpJSONResponse{}, w)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func httpEndpointRestartAll(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		programs, err := taskmasterd.GetPrograms()
+		if err != nil {
+			RespondJSON(HttpJSONResponse{
+				Error: err.Error(),
+			}, w)
+			return
+		}
+
+		for _, program := range programs {
+			program.Restart()
+		}
 
 		RespondJSON(HttpJSONResponse{}, w)
 	default:
