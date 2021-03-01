@@ -16,7 +16,7 @@ requests:
         expect: RUNNING
   create-command:
     request:
-      url: http://localhost:8080/programs
+      url: http://localhost:8080/programs/create
       method: POST
       postData:
         mimeType: application/json
