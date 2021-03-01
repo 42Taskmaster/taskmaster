@@ -1,0 +1,147 @@
+requests:
+  before-starting-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1_000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 2
+      - jsonpath: content.result.programs[0].id
+        expect: backoff
+      - jsonpath: content.result.programs[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[0].processes[0].pid
+        expect: 0
+      - jsonpath: content.result.programs[1].id
+        expect: exited
+      - jsonpath: content.result.programs[1].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[1].processes[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[1].processes[0].pid
+        expect: 0
+  start-all-programs:
+    request:
+      url: http://localhost:8080/start/all
+      method: POST
+    validate:
+      - jsonpath: status
+        expect: 200
+  starting-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1_000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 2
+      - jsonpath: content.result.programs[0].id
+        expect: backoff
+      - jsonpath: content.result.programs[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        expect: 0
+      - jsonpath: content.result.programs[1].id
+        expect: exited
+      - jsonpath: content.result.programs[1].state
+        expect: STARTING
+      - jsonpath: content.result.programs[1].processes[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[1].processes[0].pid
+        expect: 0
+  stable-state-status:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 10_000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 2
+      - jsonpath: content.result.programs[0].id
+        expect: backoff
+      - jsonpath: content.result.programs[0].state
+        expect: FATAL
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: FATAL
+      - jsonpath: content.result.programs[0].processes[0].pid
+        expect: 0
+      - jsonpath: content.result.programs[1].id
+        expect: exited
+      - jsonpath: content.result.programs[1].state
+        expect: EXITED
+      - jsonpath: content.result.programs[1].processes[0].state
+        expect: EXITED
+      - jsonpath: content.result.programs[1].processes[0].pid
+        expect: 0
+  restart-all-programs:
+    request:
+      url: http://localhost:8080/restart/all
+      method: POST
+    validate:
+      - jsonpath: status
+        expect: 200
+  status-after-restarting:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1_000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 2
+      - jsonpath: content.result.programs[0].id
+        expect: backoff
+      - jsonpath: content.result.programs[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[0].processes[0].pid
+        expect: 0
+      - jsonpath: content.result.programs[1].id
+        expect: exited
+      - jsonpath: content.result.programs[1].state
+        expect: STARTING
+      - jsonpath: content.result.programs[1].processes[0].state
+        expect: STARTING
+      - jsonpath: content.result.programs[1].processes[0].pid
+        expect: 0
+  stop-all-programs:
+    request:
+      url: http://localhost:8080/stop/all
+      method: POST
+    validate:
+      - jsonpath: status
+        expect: 200
+  status-after-stopping:
+    request:
+      url: http://localhost:8080/status
+      method: GET
+    delay: 1_000
+    maxRetries: 2
+    validate:
+      - jsonpath: content.result.programs.length
+        expect: 2
+      - jsonpath: content.result.programs[0].id
+        expect: backoff
+      - jsonpath: content.result.programs[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[0].processes[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[0].processes[0].pid
+        expect: 0
+      - jsonpath: content.result.programs[1].id
+        expect: exited
+      - jsonpath: content.result.programs[1].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[1].processes[0].state
+        expect: STOPPED
+      - jsonpath: content.result.programs[1].processes[0].pid
+        expect: 0

@@ -14,7 +14,7 @@ tearDown() {
     echo $PWD
     pkill taskmasterd
 
-    git restore .
+    git checkout .
 
     true
 }
@@ -126,6 +126,19 @@ testVersion() {
 
 testAutomaticallyRestartOnBackoffState() {
     cd automatically-restart-on-backoff-state
+    rm -f taskmasterd.log
+
+    ./test.sh
+
+    assertTrue $?
+
+    git diff --exit-code . > /dev/null
+
+    assertTrue "Files should have not been modified but were" $?
+}
+
+testStartStopRestartAll() {
+    cd start-stop-restart-all
     rm -f taskmasterd.log
 
     ./test.sh

@@ -1,0 +1,14 @@
+programs:
+  backoff:
+    cmd: bin_backoff
+    numprocs: 10
+    autostart: false
+    startretries: 0
+    starttime: 10
+    stoptime: 10
+  exited:
+    cmd: bin_exited
+    numprocs: 5
+    autostart: false
+    starttime: 10
+    stoptime: 10
