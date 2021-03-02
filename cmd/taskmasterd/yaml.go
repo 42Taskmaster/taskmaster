@@ -24,21 +24,24 @@ const (
 	StdTypeNone StdType = "NONE"
 )
 
-type ValidationIssue string
-
-const (
-	ValidationIssueEmptyField         ValidationIssue = "field is required but empty"
-	ValidationIssueValueOutsideBounds ValidationIssue = "value is outside bounds"
-	ValidationIssueUnexpectedValue    ValidationIssue = "unexpected value"
+var (
+	ValidationIssueEmptyField         = errors.New("field is required but empty")
+	ValidationIssueValueOutsideBounds = errors.New("value is outside bounds")
+	ValidationIssueUnexpectedValue    = errors.New("unexpected value")
+	ValidationIssueUnexpectedType     = errors.New("unexpected type")
 )
 
 type ErrProgramsYamlValidation struct {
 	Field string
-	Issue ValidationIssue
+	Issue error
 }
 
 func (err *ErrProgramsYamlValidation) Error() string {
-	return "validation error for field " + err.Field + " : " + string(err.Issue)
+	return "validation error for field " + err.Field + " : " + err.Issue.Error()
+}
+
+func (err *ErrProgramsYamlValidation) Unwrap() error {
+	return err.Issue
 }
 
 type ProgramsConfigurations map[string]ProgramConfiguration
@@ -90,7 +93,7 @@ type ProgramConfiguration struct {
 	Starttime    int               `json:"starttime"`
 	Stopsignal   StopSignal        `json:"stopsignal"`
 	Stoptime     int               `json:"stoptime"`
-	Stdout       string            `json:"stout"`
+	Stdout       string            `json:"stdout"`
 	Stderr       string            `json:"stderr"`
 	Env          map[string]string `json:"env"`
 }
@@ -157,23 +160,31 @@ type ProgramYaml struct {
 	Env          map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
 }
 
-func (program *ProgramYaml) NormalizedExitcodes() []int {
+func (program *ProgramYaml) NormalizedExitcodes() ([]int, error) {
+	if program.Exitcodes == nil {
+		return []int{0}, nil
+	}
+
 	switch exitcodes := program.Exitcodes.(type) {
 	case int:
-		return []int{exitcodes}
+		return []int{exitcodes}, nil
 	case []interface{}:
-		var exitcodesSlice []int
-		for _, exitcode := range exitcodes {
-			float, ok := exitcode.(float64)
-			if ok {
-				exitcodesSlice = append(exitcodesSlice, int(float))
-			} else {
-				exitcodesSlice = append(exitcodesSlice, exitcode.(int))
+		exitcodesSlice := make([]int, len(exitcodes))
+
+		for index, exitcode := range exitcodes {
+			switch convertedExitcode := exitcode.(type) {
+			case float64:
+				exitcodesSlice[index] = int(convertedExitcode)
+			case int:
+				exitcodesSlice[index] = convertedExitcode
+			default:
+				return nil, ValidationIssueUnexpectedType
 			}
 		}
-		return exitcodesSlice
+
+		return exitcodesSlice, nil
 	default:
-		return []int{0}
+		return nil, ValidationIssueUnexpectedType
 	}
 }
 
@@ -185,9 +196,25 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	const HourInSeconds = 60 * 60
 
 	config := ProgramConfiguration{
-		Exitcodes: program.NormalizedExitcodes(),
-		Env:       program.Env,
+		Env: program.Env,
 	}
+
+	normalizedExitcodes, err := program.NormalizedExitcodes()
+	if err != nil {
+		return config, &ErrProgramsYamlValidation{
+			Field: "Exitcodes",
+			Issue: err,
+		}
+	}
+	for _, exitcode := range normalizedExitcodes {
+		if !(0 <= exitcode && exitcode <= 255) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Exitcodes",
+				Issue: ValidationIssueValueOutsideBounds,
+			}
+		}
+	}
+	config.Exitcodes = normalizedExitcodes
 
 	if args.PickProgramName {
 		if program.Name == nil {
@@ -227,6 +254,14 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 		}
 	} else {
 		config.Numprocs = *program.Numprocs
+	}
+
+	if program.Umask != nil {
+		config.Umask = *program.Umask
+	}
+
+	if program.Workingdir != nil {
+		config.Workingdir = *program.Workingdir
 	}
 
 	if program.Autostart == nil {
