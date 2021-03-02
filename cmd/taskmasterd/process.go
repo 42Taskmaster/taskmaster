@@ -219,25 +219,21 @@ func (process *Process) GetContext() context.Context {
 }
 
 func (process *Process) StartChronometer() {
-	go func() {
-		select {
-		case process.internalMonitorChannel <- ProcessTaskActionStartChronometer:
-			return
-		case <-process.context.Done():
-			return
-		}
-	}()
+	select {
+	case process.internalMonitorChannel <- ProcessTaskActionStartChronometer:
+		return
+	case <-process.context.Done():
+		return
+	}
 }
 
 func (process *Process) StopChronometer() {
-	go func() {
-		select {
-		case process.internalMonitorChannel <- ProcessTaskActionStopChronometer:
-			return
-		case <-process.context.Done():
-			return
-		}
-	}()
+	select {
+	case process.internalMonitorChannel <- ProcessTaskActionStopChronometer:
+		return
+	case <-process.context.Done():
+		return
+	}
 }
 
 func (process *Process) Start() {
