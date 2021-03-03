@@ -334,7 +334,7 @@ func TestNumprocsIsNotOutsideUpperBounds(t *testing.T) {
 	t.Errorf("Returned invalid error")
 }
 
-func TestProvidesUmask(t *testing.T) {
+func TestUmaskIsValidValue(t *testing.T) {
 	const umask = "755"
 
 	programs := ProgramsYaml{
@@ -346,7 +346,112 @@ func TestProvidesUmask(t *testing.T) {
 		},
 	}
 
-	config, _ := programs.Validate()
+	config, err := programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for umask; received %v", err)
+		return
+	}
+
+	if configUmask := config["taskmaster"].Umask; configUmask != umask {
+		t.Errorf(
+			"Umask value has not been provided, received: %v; expected %v",
+			configUmask,
+			umask,
+		)
+	}
+}
+
+func TestUmaskFailsOnInvalidOctal(t *testing.T) {
+	// `9` is not a valid number in octal
+	const umask = "759"
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:   strToPointer("cmd"),
+				Umask: strToPointer(umask),
+			},
+		},
+	}
+
+	_, err := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+		return
+	}
+
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
+		if !(validationError.Field == "Programs[taskmaster].Umask" && errors.Is(validationError, ValidationIssueUnexpectedValue)) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Umask",
+				ValidationIssueUnexpectedValue,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestUmaskFailsOnNegativeOctal(t *testing.T) {
+	// `9` is not a valid number in octal
+	const umask = "-022"
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:   strToPointer("cmd"),
+				Umask: strToPointer(umask),
+			},
+		},
+	}
+
+	_, err := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+		return
+	}
+
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
+		if !(validationError.Field == "Programs[taskmaster].Umask" && errors.Is(validationError, ValidationIssueValueOutsideBounds)) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Umask",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestUmaskAcceptsEmptyStrings(t *testing.T) {
+	const umask = ""
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:   strToPointer("cmd"),
+				Umask: strToPointer(umask),
+			},
+		},
+	}
+
+	config, err := programs.Validate()
+	if err != nil {
+		t.Errorf("Expected no error for umask; received %v", err)
+		return
+	}
 
 	if configUmask := config["taskmaster"].Umask; configUmask != umask {
 		t.Errorf(
@@ -440,6 +545,7 @@ func TestAutorestartIsValidValue(t *testing.T) {
 	_, err := programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOn)
+		return
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = AutorestartOff
@@ -447,6 +553,7 @@ func TestAutorestartIsValidValue(t *testing.T) {
 	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartOff)
+		return
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = AutorestartUnexpected
@@ -454,6 +561,7 @@ func TestAutorestartIsValidValue(t *testing.T) {
 	_, err = programs.Validate()
 	if err != nil {
 		t.Errorf("Expected no error for autorestart = %s", AutorestartUnexpected)
+		return
 	}
 
 	*programs.Programs["taskmaster"].Autorestart = "Invalid value"
