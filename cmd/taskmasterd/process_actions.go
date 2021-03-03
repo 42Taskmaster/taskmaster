@@ -130,13 +130,6 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 		process.StopChronometer()
 
-		if err := process.CloseFileDescriptors(); err != nil {
-			log.Printf(
-				"error while closing opened file descriptors of stdout and stderr: %v\n",
-				err,
-			)
-		}
-
 		_, err := stateMachine.Send(ProcessEventStopped)
 		if err != nil {
 			log.Printf("expected no error to be returned but got %v\n", err)

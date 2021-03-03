@@ -23,7 +23,6 @@ type Processer interface {
 	GetCmd() *exec.Cmd
 	SetCmd(*exec.Cmd)
 	SetStdoutStderrCloser(stdout, stderr io.WriteCloser)
-	CloseFileDescriptors() error
 	StartChronometer()
 	StopChronometer()
 	Start()
@@ -190,25 +189,6 @@ func (process *Process) monitor() {
 
 				process.stdoutClose = stdoutClose
 				process.stderrClose = stderrClose
-			case ProcessTaskActionCloseFileDescriptors:
-				taskWithResponse := task.(ProcessInternalTaskWithResponse)
-				responseChan := taskWithResponse.ResponseChan
-
-				if process.stdoutClose != nil {
-					if err := process.stdoutClose(); err != nil {
-						responseChan <- err
-						break
-					}
-				}
-
-				if process.stderrClose != nil {
-					if err := process.stderrClose(); err != nil {
-						responseChan <- err
-						break
-					}
-				}
-
-				responseChan <- nil
 			}
 		}
 	}
@@ -465,32 +445,5 @@ func (process *Process) SetStdoutStderrCloser(stdout, stderr io.WriteCloser) {
 func (process *Process) Wait() {
 	if deadCh := process.GetDeadChannel(); deadCh != nil {
 		<-deadCh
-	}
-}
-
-func (process *Process) CloseFileDescriptors() error {
-	responseChan := make(chan interface{})
-
-	select {
-	case process.internalMonitorChannel <- ProcessInternalTaskWithResponse{
-		TaskBase: TaskBase{
-			Action: ProcessTaskActionCloseFileDescriptors,
-		},
-		ResponseChan: responseChan,
-	}:
-	case <-process.context.Done():
-		return nil
-	}
-
-	select {
-	case resp := <-responseChan:
-		if resp == nil {
-			return nil
-		}
-
-		err := resp.(error)
-		return err
-	case <-process.context.Done():
-		return nil
 	}
 }

@@ -56,7 +56,6 @@ const (
 	ProcessTaskActionGetStateMachineCurrentState TaskAction = "PROCESS_GET_STATE_MACHINE_CURRENT_STATE"
 	ProcessTaskActionSetCmd                      TaskAction = "PROCESS_SET_CMD"
 	ProcessTaskActionSetStdoutStderrCloser       TaskAction = "PROCESS_SET_STDOUT_STDERR_CLOSER"
-	ProcessTaskActionCloseFileDescriptors        TaskAction = "PROCESS_CLOSE_FILE_DESCRIPTORS"
 	ProcessTaskActionStart                       TaskAction = "PROCESS_START"
 	ProcessTaskActionStop                        TaskAction = "PROCESS_STOP"
 	ProcessTaskActionRestart                     TaskAction = "PROCESS_RESTART"
