@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -27,6 +28,7 @@ const (
 var (
 	ValidationIssueEmptyField         = errors.New("field is required but empty")
 	ValidationIssueValueOutsideBounds = errors.New("value is outside bounds")
+	ValidationIssueUnexpectedMapKey   = errors.New("unexpected map key")
 	ValidationIssueUnexpectedValue    = errors.New("unexpected value")
 	ValidationIssueUnexpectedType     = errors.New("unexpected type")
 )
@@ -195,9 +197,7 @@ type ProgramYamlValidateArgs struct {
 func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfiguration, error) {
 	const HourInSeconds = 60 * 60
 
-	config := ProgramConfiguration{
-		Env: program.Env,
-	}
+	var config ProgramConfiguration
 
 	normalizedExitcodes, err := program.NormalizedExitcodes()
 	if err != nil {
@@ -339,7 +339,28 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 		config.Stderr = *program.Stderr
 	}
 
+	if program.Env == nil {
+		config.Env = nil
+	} else {
+		for key := range program.Env {
+			if !isValidEnvironementVariableName(key) {
+				return config, &ErrProgramsYamlValidation{
+					Field: "Env",
+					Issue: ValidationIssueUnexpectedMapKey,
+				}
+			}
+		}
+
+		config.Env = program.Env
+	}
+
 	return config, nil
+}
+
+func isValidEnvironementVariableName(s string) bool {
+	re := regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+	return re.MatchString(s)
 }
 
 func yamlParse(r io.Reader) (ProgramsYaml, error) {
