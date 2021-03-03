@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -257,7 +258,25 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if program.Umask != nil {
-		config.Umask = *program.Umask
+		umask := *program.Umask
+
+		if umask != "" {
+			// Try to parse octal string to an int.
+			// If we fail, the umask property must be rejected.
+			if umaskAsInt, err := strconv.ParseInt(umask, 8, 64); err != nil {
+				return config, &ErrProgramsYamlValidation{
+					Field: "Umask",
+					Issue: ValidationIssueUnexpectedValue,
+				}
+			} else if umaskAsInt < 0 {
+				return config, &ErrProgramsYamlValidation{
+					Field: "Umask",
+					Issue: ValidationIssueValueOutsideBounds,
+				}
+			}
+		}
+
+		config.Umask = umask
 	}
 
 	if program.Workingdir != nil {
