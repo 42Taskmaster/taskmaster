@@ -1,6 +1,21 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
+
+func Equal(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
 
 func strToPointer(str string) *string {
 	return &str
@@ -34,9 +49,11 @@ func TestCmdIsRequired(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Cmd" && validationError.Issue == ValidationIssueEmptyField) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -44,6 +61,163 @@ func TestCmdIsRequired(t *testing.T) {
 				validationError.Issue,
 				"Programs[taskmaster].Cmd",
 				ValidationIssueEmptyField,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestRejectsInvalidTypeValuesForExitcodes(t *testing.T) {
+	var (
+		invalidStringExitcodes          interface{} = "0"
+		invalidSliceWithNotNumberValues interface{} = []interface{}{
+			0,
+			"0",
+		}
+
+		invalidValuesToTest = []interface{}{
+			invalidStringExitcodes,
+			invalidSliceWithNotNumberValues,
+		}
+	)
+
+	for _, invalidValue := range invalidValuesToTest {
+		programs := ProgramsYaml{
+			Programs: map[string]ProgramYaml{
+				"taskmaster": {
+					Cmd:       strToPointer("cmd"),
+					Exitcodes: invalidValue,
+				},
+			},
+		}
+
+		_, err := programs.Validate()
+		if err == nil {
+			t.Errorf("Validate should have returned an error")
+			return
+		}
+
+		var validationError *ErrProgramsYamlValidation
+		if errors.As(err, &validationError) {
+			if validationError.Field == "Programs[taskmaster].Exitcodes" && errors.Is(validationError, ValidationIssueUnexpectedType) {
+				continue
+			}
+
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Exitcodes",
+				ValidationIssueUnexpectedType,
+			)
+			return
+		}
+
+		t.Errorf("Returned invalid error")
+		return
+	}
+}
+
+func TestExitcodesAcceptIntAndFloat(t *testing.T) {
+	var (
+		programRawExitcodes = []interface{}{
+			0,
+			1.0,
+		}
+		programIntExitcodes = []int{
+			0,
+			1,
+		}
+	)
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:       strToPointer("cmd"),
+				Exitcodes: programRawExitcodes,
+			},
+		},
+	}
+
+	config, _ := programs.Validate()
+
+	if exitcodes := config["taskmaster"].Exitcodes; !Equal(exitcodes, programIntExitcodes) {
+		t.Errorf(
+			"Numprocs not set to correct default value: %v; expected %v",
+			exitcodes,
+			programIntExitcodes,
+		)
+	}
+}
+
+func TestExitcodesAreNotOutsideLowerBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd: strToPointer("cmd"),
+				Exitcodes: []interface{}{
+					0,
+					-1,
+				},
+			},
+		},
+	}
+
+	_, err := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+		return
+	}
+
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
+		if !(validationError.Field == "Programs[taskmaster].Exitcodes" && errors.Is(validationError, ValidationIssueValueOutsideBounds)) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Exitcodes",
+				ValidationIssueValueOutsideBounds,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestExitcodesAreNotOutsideUpperBounds(t *testing.T) {
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd: strToPointer("cmd"),
+				Exitcodes: []interface{}{
+					0,
+					256,
+				},
+			},
+		},
+	}
+
+	_, err := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+		return
+	}
+
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
+		if !(validationError.Field == "Programs[taskmaster].Exitcodes" && errors.Is(validationError, ValidationIssueValueOutsideBounds)) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Exitcodes",
+				ValidationIssueValueOutsideBounds,
 			)
 			return
 		}
@@ -87,9 +261,11 @@ func TestNumprocsIsNotOutsideLowerBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Numprocs" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -119,9 +295,11 @@ func TestNumprocsIsNotOutsideUpperBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Numprocs" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -136,6 +314,52 @@ func TestNumprocsIsNotOutsideUpperBounds(t *testing.T) {
 	}
 
 	t.Errorf("Returned invalid error")
+}
+
+func TestProvidesUmask(t *testing.T) {
+	const umask = "755"
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:   strToPointer("cmd"),
+				Umask: strToPointer(umask),
+			},
+		},
+	}
+
+	config, _ := programs.Validate()
+
+	if configUmask := config["taskmaster"].Umask; configUmask != umask {
+		t.Errorf(
+			"Umask value has not been provided, received: %v; expected %v",
+			configUmask,
+			umask,
+		)
+	}
+}
+
+func TestProvidesWorkingdir(t *testing.T) {
+	const workingdir = "/bin"
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd:        strToPointer("cmd"),
+				Workingdir: strToPointer(workingdir),
+			},
+		},
+	}
+
+	config, _ := programs.Validate()
+
+	if configUmask := config["taskmaster"].Workingdir; configUmask != workingdir {
+		t.Errorf(
+			"Workingdir value has not been provided, received: %v; expected %v",
+			configUmask,
+			workingdir,
+		)
+	}
 }
 
 func TestAutostartSetToDefaultValue(t *testing.T) {
@@ -217,7 +441,8 @@ func TestAutorestartIsValidValue(t *testing.T) {
 	*programs.Programs["taskmaster"].Autorestart = "Invalid value"
 
 	_, err = programs.Validate()
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Autorestart" && validationError.Issue == ValidationIssueUnexpectedValue) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -274,9 +499,11 @@ func TestStarttimeIsNotOutsideLowerBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -309,9 +536,11 @@ func TestStarttimeIsNotOutsideUpperBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Starttime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -370,9 +599,11 @@ func TestStartretriesIsNotOutsideLowerBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Startretries" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -406,9 +637,11 @@ func TestStartretriesIsNotOutsideUpperBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Startretries" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -516,7 +749,8 @@ func TestStopsignalIsValidValue(t *testing.T) {
 	*programs.Programs["taskmaster"].Stopsignal = "Invalid value"
 
 	_, err = programs.Validate()
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Stopsignal" && validationError.Issue == ValidationIssueUnexpectedValue) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -579,9 +813,11 @@ func TestStoptimeIsNotOutsideLowerBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Stoptime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -617,9 +853,11 @@ func TestStoptimeIsNotOutsideUpperBounds(t *testing.T) {
 	_, err := programs.Validate()
 	if err == nil {
 		t.Errorf("Validate should have returned an error")
+		return
 	}
 
-	if validationError, ok := err.(*ErrProgramsYamlValidation); ok {
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
 		if !(validationError.Field == "Programs[taskmaster].Stoptime" && validationError.Issue == ValidationIssueValueOutsideBounds) {
 			t.Errorf(
 				"Incorrect error: (%s, %s); expected (%s, %s)",
@@ -693,6 +931,8 @@ func TestStderrSetToDefaultValue(t *testing.T) {
 }
 
 func TestParsesValidFullConfiguration(t *testing.T) {
+	exitcodes := []interface{}{0}
+
 	programs := ProgramsYaml{
 		Programs: map[string]ProgramYaml{
 			"taskmaster": {
@@ -702,7 +942,7 @@ func TestParsesValidFullConfiguration(t *testing.T) {
 				Workingdir:   strToPointer("/dir"),
 				Autostart:    boolToPointer(true),
 				Autorestart:  autorestartTypeToPointer(AutorestartOn),
-				Exitcodes:    []int{0},
+				Exitcodes:    exitcodes,
 				Startretries: intToPointer(3),
 				Starttime:    intToPointer(10),
 				Stopsignal:   stopSignalToPointer(StopSignalTerm),

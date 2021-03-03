@@ -111,7 +111,7 @@ func httpEndpointStatus(taskmasterd *Taskmasterd, w http.ResponseWriter, r *http
 		}
 
 		httpPrograms := HttpPrograms{
-			Programs: make([]HttpProgram, 0),
+			Programs: make([]HttpProgram, 0, len(programs)),
 		}
 		for _, program := range programs {
 			processes, err := program.GetSortedProcesses()
@@ -460,7 +460,7 @@ func httpEndpointCreateProgram(taskmasterd *Taskmasterd, w http.ResponseWriter, 
 			}, w)
 			return
 		}
-		
+
 		RespondJSON(HttpJSONResponse{}, w)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
