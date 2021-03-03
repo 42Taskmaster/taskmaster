@@ -93,6 +93,8 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 	process.SetCmd(cmd)
 
+	deadCh := process.CreateNewDeadChannel()
+
 	SetUmask(config.Umask)
 	if err := cmd.Start(); err != nil {
 		log.Printf(
@@ -104,13 +106,13 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 		ResetUmask()
 
+		close(deadCh)
+
 		return ProcessEventStopped, nil
 	}
 	ResetUmask()
 
 	process.StartChronometer()
-
-	deadCh := process.CreateNewDeadChannel()
 
 	go func() {
 		select {
