@@ -61,7 +61,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 	expandedCommand := os.ExpandEnv(config.Cmd)
 	parsedCommand, err := parser.ParseCommand(expandedCommand)
 	if err != nil {
-		return ProcessEventFatal, err
+		return ProcessEventStopped, nil
 	}
 
 	cmd := exec.CommandContext(
@@ -77,13 +77,13 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 	stdout, err := config.CreateCmdStdout(serializedProcess.ID)
 	if err != nil {
-		return ProcessEventFatal, nil
+		return ProcessEventStopped, nil
 	}
 	cmd.Stdout = stdout
 
 	stderr, err := config.CreateCmdStderr(serializedProcess.ID)
 	if err != nil {
-		return ProcessEventFatal, nil
+		return ProcessEventStopped, nil
 	}
 	cmd.Stderr = stderr
 
