@@ -17,6 +17,24 @@ func Equal(a, b []int) bool {
 	return true
 }
 
+func MapStringKeyStringValueEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for key, valueInA := range a {
+		valueInB, ok := b[key]
+		if !ok {
+			return false
+		}
+		if valueInA != valueInB {
+			return false
+		}
+	}
+
+	return true
+}
+
 func strToPointer(str string) *string {
 	return &str
 }
@@ -926,6 +944,72 @@ func TestStderrSetToDefaultValue(t *testing.T) {
 			"Stderr not set to correct default value: %v; expected %v",
 			stderr,
 			string(StdTypeAuto),
+		)
+	}
+}
+
+func TestEnvFailsForInvalidKeys(t *testing.T) {
+	var env = map[string]string{
+		"NODE_ENV": "production",
+		" yolo 👹 ": "http://localhost:8080/configuration/fake",
+	}
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd: strToPointer("cmd"),
+				Env: env,
+			},
+		},
+	}
+
+	_, err := programs.Validate()
+	if err == nil {
+		t.Errorf("Validate should have returned an error")
+		return
+	}
+
+	var validationError *ErrProgramsYamlValidation
+	if errors.As(err, &validationError) {
+		if !(validationError.Field == "Programs[taskmaster].Env" && errors.Is(err, ValidationIssueUnexpectedMapKey)) {
+			t.Errorf(
+				"Incorrect error: (%s, %s); expected (%s, %s)",
+				validationError.Field,
+				validationError.Issue,
+				"Programs[taskmaster].Env",
+				ValidationIssueUnexpectedMapKey,
+			)
+			return
+		}
+		return
+	}
+
+	t.Errorf("Returned invalid error")
+}
+
+func TestEnvIsValidValue(t *testing.T) {
+	var env = map[string]string{
+		"NODE_ENV":        "production",
+		"TASKMASTERD_URL": "http://localhost:8080/configuration/fake",
+		"TEST":            "",
+	}
+
+	programs := ProgramsYaml{
+		Programs: map[string]ProgramYaml{
+			"taskmaster": {
+				Cmd: strToPointer("cmd"),
+				Env: env,
+			},
+		},
+	}
+
+	config, _ := programs.Validate()
+
+	if configEnv := config["taskmaster"].Env; !MapStringKeyStringValueEqual(configEnv, env) {
+		t.Errorf(
+			"Env value has not been provided, received: %v; expected %v",
+			configEnv,
+			env,
 		)
 	}
 }
