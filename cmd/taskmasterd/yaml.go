@@ -256,7 +256,7 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 
 	if program.Numprocs == nil {
 		config.Numprocs = 1
-	} else if *program.Numprocs < 0 || *program.Numprocs > 100 {
+	} else if *program.Numprocs < 1 || *program.Numprocs > 100 {
 		return config, &ErrProgramsYamlValidation{
 			Field: "Numprocs",
 			Issue: ValidationIssueValueOutsideBounds,
