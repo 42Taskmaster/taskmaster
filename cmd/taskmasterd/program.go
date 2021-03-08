@@ -208,6 +208,8 @@ func (program *Program) setConfig(task Tasker) error {
 
 	program.configuration = newConfig
 
+	program.restartAllProcesses(nil)
+
 	oldNumProcess := len(program.processes)
 	newNumProcesses := newConfig.Numprocs
 	delta := newNumProcesses - oldNumProcess
