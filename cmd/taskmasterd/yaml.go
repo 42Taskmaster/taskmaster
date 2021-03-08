@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v2"
 )
@@ -32,6 +33,7 @@ var (
 	ValidationIssueUnexpectedMapKey   = errors.New("unexpected map key")
 	ValidationIssueUnexpectedValue    = errors.New("unexpected value")
 	ValidationIssueUnexpectedType     = errors.New("unexpected type")
+	ValidationIssueNonAscii           = errors.New("string contains non ASCII characters")
 )
 
 type ErrProgramsYamlValidation struct {
@@ -243,6 +245,12 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 			Issue: ValidationIssueEmptyField,
 		}
 	}
+	if !isASCII(*program.Cmd) {
+		return config, &ErrProgramsYamlValidation{
+			Field: "Cmd",
+			Issue: ValidationIssueNonAscii,
+		}
+	}
 
 	config.Cmd = *program.Cmd
 
@@ -280,6 +288,12 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if program.Workingdir != nil {
+		if !isASCII(*program.Workingdir) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Workingdir",
+				Issue: ValidationIssueNonAscii,
+			}
+		}
 		config.Workingdir = *program.Workingdir
 	}
 
@@ -349,12 +363,24 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	if program.Stdout == nil {
 		config.Stdout = string(StdTypeAuto)
 	} else {
+		if !isASCII(*program.Stdout) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Stdout",
+				Issue: ValidationIssueNonAscii,
+			}
+		}
 		config.Stdout = *program.Stdout
 	}
 
 	if program.Stderr == nil {
 		config.Stderr = string(StdTypeAuto)
 	} else {
+		if !isASCII(*program.Stderr) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Stderr",
+				Issue: ValidationIssueNonAscii,
+			}
+		}
 		config.Stderr = *program.Stderr
 	}
 
@@ -374,6 +400,15 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	return config, nil
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidEnvironementVariableName(s string) bool {
