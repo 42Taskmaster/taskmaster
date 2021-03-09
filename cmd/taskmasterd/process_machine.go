@@ -26,6 +26,7 @@ const (
 type ProcessMachineContext struct {
 	Process    Processer
 	Starttries int
+	LastError  error
 }
 
 func NewProcessMachine(process *Process) *machine.Machine {
