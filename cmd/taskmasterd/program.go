@@ -71,9 +71,10 @@ func NewProgram(args NewProgramArgs) Program {
 	}
 
 	for index := 1; index <= program.configuration.Numprocs; index++ {
-		id := strconv.Itoa(index)
+		id := createProcessName(program.configuration.Name, index)
+
 		process := NewProcess(NewProcessArgs{
-			ID:              strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + id,
+			ID:              id,
 			Context:         localContext,
 			ProgramTaskChan: program.ProcessTaskChan,
 		})
@@ -83,6 +84,10 @@ func NewProgram(args NewProgramArgs) Program {
 	go program.Monitor()
 
 	return program
+}
+
+func createProcessName(programName string, id int) string {
+	return strings.ReplaceAll(programName, " ", "-") + "_" + strconv.Itoa(id)
 }
 
 func (program *Program) getProcessByID(id string) (Processer, error) {
@@ -219,53 +224,66 @@ func (program *Program) setConfig(task Tasker) error {
 
 	program.configuration = newConfig
 
-	if restartProcesses {
-		program.restartAllProcesses(nil)
-	}
-
 	oldNumProcess := len(program.processes)
 	newNumProcesses := newConfig.Numprocs
 	delta := newNumProcesses - oldNumProcess
 
 	if delta < 0 {
-		for index := newNumProcesses + 1; index <= oldNumProcess; index++ {
-			processID := strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + strconv.Itoa(index)
+		for index := 1; index <= oldNumProcess; index++ {
+			processID := createProcessName(program.configuration.Name, index)
 
 			process, err := program.getProcessByID(processID)
 			if err != nil {
 				return err
 			}
 
-			serializedProcess := process.Serialize()
+			if index > newNumProcesses {
+				serializedProcess := process.Serialize()
 
-			go func() {
-				process.Wait()
+				go func() {
+					process.Wait()
 
-				program.ProcessTaskChan <- ProcessTask{
-					TaskBase: TaskBase{
-						Action: ProgramTaskActionRemove,
-					},
-					ProcessID: serializedProcess.ID,
-				}
-			}()
+					program.ProcessTaskChan <- ProcessTask{
+						TaskBase: TaskBase{
+							Action: ProgramTaskActionRemove,
+						},
+						ProcessID: serializedProcess.ID,
+					}
+				}()
 
-			process.Stop()
-		}
-	} else if delta > 0 {
-		for index := oldNumProcess + 1; index <= newNumProcesses; index++ {
-			processID := strings.ReplaceAll(program.configuration.Name, " ", "-") + "_" + strconv.Itoa(index)
-
-			process := NewProcess(NewProcessArgs{
-				ID:              processID,
-				Context:         program.LocalContext,
-				ProgramTaskChan: program.ProcessTaskChan,
-			})
-			program.processes[processID] = process
-
-			if program.configuration.Autostart {
-				process.Start()
+				process.Stop()
+			} else if restartProcesses {
+				process.Restart()
 			}
 		}
+	} else if delta > 0 {
+		for index := 1; index <= newNumProcesses; index++ {
+			if index > oldNumProcess {
+				processID := createProcessName(program.configuration.Name, index)
+
+				process := NewProcess(NewProcessArgs{
+					ID:              processID,
+					Context:         program.LocalContext,
+					ProgramTaskChan: program.ProcessTaskChan,
+				})
+				program.processes[processID] = process
+
+				if program.configuration.Autostart {
+					process.Start()
+				}
+			} else if restartProcesses {
+				processID := createProcessName(program.configuration.Name, index)
+
+				process, err := program.getProcessByID(processID)
+				if err != nil {
+					return err
+				}
+
+				process.Restart()
+			}
+		}
+	} else if restartProcesses {
+		program.restartAllProcesses(nil)
 	}
 
 	return nil
