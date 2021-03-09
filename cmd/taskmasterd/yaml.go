@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"gopkg.in/yaml.v2"
 )
@@ -33,7 +32,8 @@ var (
 	ValidationIssueUnexpectedMapKey   = errors.New("unexpected map key")
 	ValidationIssueUnexpectedValue    = errors.New("unexpected value")
 	ValidationIssueUnexpectedType     = errors.New("unexpected type")
-	ValidationIssueNonAscii           = errors.New("string contains non ASCII characters")
+	ValidationIssueInvalidPath        = errors.New("invalid path")
+	ValidationIssueNullChar           = errors.New("string cannot contains null char")
 )
 
 type ErrProgramsYamlValidation struct {
@@ -236,6 +236,13 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 			}
 		}
 
+		if hasNullChar(programName) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Name",
+				Issue: ValidationIssueNullChar,
+			}
+		}
+
 		config.Name = programName
 	}
 
@@ -245,10 +252,10 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 			Issue: ValidationIssueEmptyField,
 		}
 	}
-	if !isASCII(*program.Cmd) {
+	if hasNullChar(*program.Cmd) {
 		return config, &ErrProgramsYamlValidation{
 			Field: "Cmd",
-			Issue: ValidationIssueNonAscii,
+			Issue: ValidationIssueNullChar,
 		}
 	}
 
@@ -288,10 +295,10 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if program.Workingdir != nil {
-		if !isASCII(*program.Workingdir) {
+		if hasNullChar(*program.Workingdir) {
 			return config, &ErrProgramsYamlValidation{
 				Field: "Workingdir",
-				Issue: ValidationIssueNonAscii,
+				Issue: ValidationIssueNullChar,
 			}
 		}
 		config.Workingdir = *program.Workingdir
@@ -363,10 +370,10 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	if program.Stdout == nil {
 		config.Stdout = string(StdTypeAuto)
 	} else {
-		if !isASCII(*program.Stdout) {
+		if hasNullChar(*program.Stdout) {
 			return config, &ErrProgramsYamlValidation{
 				Field: "Stdout",
-				Issue: ValidationIssueNonAscii,
+				Issue: ValidationIssueNullChar,
 			}
 		}
 		config.Stdout = *program.Stdout
@@ -375,10 +382,10 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	if program.Stderr == nil {
 		config.Stderr = string(StdTypeAuto)
 	} else {
-		if !isASCII(*program.Stderr) {
+		if hasNullChar(*program.Stderr) {
 			return config, &ErrProgramsYamlValidation{
 				Field: "Stderr",
-				Issue: ValidationIssueNonAscii,
+				Issue: ValidationIssueNullChar,
 			}
 		}
 		config.Stderr = *program.Stderr
@@ -402,13 +409,13 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	return config, nil
 }
 
-func isASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] > unicode.MaxASCII {
-			return false
+func hasNullChar(s string) bool {
+	for _, c := range s {
+		if c == rune(0) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func isValidEnvironementVariableName(s string) bool {
