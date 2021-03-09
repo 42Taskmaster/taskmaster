@@ -249,3 +249,34 @@ func ProcessResetStarttriesAction(stateMachine *machine.Machine, context machine
 
 	return machine.NoopEvent, nil
 }
+
+func PrintCurrentStateAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
+	sentenceForState := map[machine.StateType]string{
+		ProcessStateStarting: "is starting",
+		ProcessStateBackoff:  "is backing off",
+		ProcessStateRunning:  "is running",
+		ProcessStateStopping: "is stopping",
+		ProcessStateStopped:  "is stopped",
+		ProcessStateExited:   "has exited",
+		ProcessStateFatal:    "has fataly exited",
+	}
+
+	processContext := context.(*ProcessMachineContext)
+	process := processContext.Process
+
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
+
+	serializedProcess := process.Serialize()
+
+	log.Printf(
+		"Process '%s' of program '%s' %s\n",
+		serializedProcess.ID,
+		config.Name,
+		sentenceForState[stateMachine.UnsafeCurrent()],
+	)
+
+	return machine.NoopEvent, nil
+}
