@@ -173,7 +173,7 @@ func (process *Process) monitor() {
 				taskWithResponse := task.(ProcessInternalTaskWithResponse)
 				responseChan := taskWithResponse.ResponseChan
 
-				responseChan <- process.machine.Current()
+				responseChan <- process.machine.UnsafeCurrent()
 
 				close(responseChan)
 			case ProcessTaskActionSetCmd:
