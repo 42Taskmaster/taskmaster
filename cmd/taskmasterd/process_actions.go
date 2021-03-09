@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -45,6 +46,14 @@ func (err *ErrProcessStopping) Unwrap() error {
 
 func (err *ErrProcessStopping) Error() string {
 	return "stopping: " + err.Err.Error()
+}
+
+type ErrStrartretriesReached struct {
+	Startretries int
+}
+
+func (err *ErrStrartretriesReached) Error() string {
+	return fmt.Sprintf("reached maximum startries: %d", err.Startretries)
 }
 
 func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
@@ -97,12 +106,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 	SetUmask(config.Umask)
 	if err := cmd.Start(); err != nil {
-		log.Printf(
-			"Error starting process '%s' of program '%s': %s",
-			config.Name,
-			serializedProcess.ID,
-			err.Error(),
-		)
+		processContext.LastError = err
 
 		ResetUmask()
 
@@ -132,10 +136,7 @@ func ProcessStartAction(stateMachine *machine.Machine, context machine.Context) 
 
 		process.StopChronometer()
 
-		_, err := stateMachine.Send(ProcessEventStopped)
-		if err != nil {
-			log.Printf("expected no error to be returned but got %v\n", err)
-		}
+		stateMachine.Send(ProcessEventStopped)
 	}()
 
 	return machine.NoopEvent, nil
@@ -182,23 +183,13 @@ func ProcessBackoffAction(stateMachine *machine.Machine, context machine.Context
 		return machine.NoopEvent, err
 	}
 
-	serializedProcess := process.Serialize()
-
 	if processContext.Starttries >= config.Startretries {
-		log.Printf(
-			"Fatal: could not start process '%s' of program '%s' (%d tries)",
-			serializedProcess.ID,
-			config.Name,
-			processContext.Starttries,
-		)
+		processContext.LastError = &ErrStrartretriesReached{
+			Startretries: processContext.Starttries,
+		}
+
 		return ProcessEventFatal, nil
 	}
-
-	log.Printf(
-		"Trying to restart process '%s' of program '%s'...",
-		serializedProcess.ID,
-		config.Name,
-	)
 
 	processContext.Starttries++
 
@@ -214,16 +205,10 @@ func ProcessExitedAction(stateMachine *machine.Machine, context machine.Context)
 		return machine.NoopEvent, err
 	}
 
-	serializedProcess := process.Serialize()
-
 	switch config.Autorestart {
 	case AutorestartOn:
-		log.Printf(
-			"Trying to restart process '%s' of program '%s'...",
-			serializedProcess.ID,
-			config.Name,
-		)
 		return ProcessEventStart, nil
+
 	case AutorestartUnexpected:
 		exitcode := process.GetCmd().ProcessState.ExitCode()
 		for _, allowedExitcode := range config.Exitcodes {
@@ -232,12 +217,8 @@ func ProcessExitedAction(stateMachine *machine.Machine, context machine.Context)
 			}
 		}
 
-		log.Printf(
-			"Trying to restart process '%s' of program '%s'...",
-			serializedProcess.ID,
-			config.Name,
-		)
 		return ProcessEventStart, nil
+
 	default:
 		return machine.NoopEvent, nil
 	}
@@ -246,6 +227,54 @@ func ProcessExitedAction(stateMachine *machine.Machine, context machine.Context)
 func ProcessResetStarttriesAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
 	processContext := context.(*ProcessMachineContext)
 	processContext.Starttries = 0
+
+	return machine.NoopEvent, nil
+}
+
+func PrintCurrentStateAction(stateMachine *machine.Machine, context machine.Context) (machine.EventType, error) {
+	var (
+		processContext = context.(*ProcessMachineContext)
+		process        = processContext.Process
+	)
+
+	defer func() {
+		processContext.LastError = nil
+	}()
+
+	sentenceForState := map[machine.StateType]string{
+		ProcessStateStarting: "is starting",
+		ProcessStateBackoff:  "is backing off",
+		ProcessStateRunning:  "is running",
+		ProcessStateStopping: "is stopping",
+		ProcessStateStopped:  "is stopped",
+		ProcessStateExited:   "has exited",
+		ProcessStateFatal:    "has fataly exited",
+	}
+
+	config, err := process.GetConfig()
+	if err != nil {
+		return machine.NoopEvent, err
+	}
+
+	serializedProcess := process.Serialize()
+	currentState := stateMachine.UnsafeCurrent()
+
+	if err := processContext.LastError; err != nil {
+		log.Printf(
+			"Process '%s' of program '%s' %s (%s)\n",
+			serializedProcess.ID,
+			config.Name,
+			sentenceForState[currentState],
+			err,
+		)
+	} else {
+		log.Printf(
+			"Process '%s' of program '%s' %s\n",
+			serializedProcess.ID,
+			config.Name,
+			sentenceForState[currentState],
+		)
+	}
 
 	return machine.NoopEvent, nil
 }

@@ -1,6 +1,8 @@
 package main
 
-import "github.com/42Taskmaster/taskmaster/machine"
+import (
+	"github.com/42Taskmaster/taskmaster/machine"
+)
 
 const (
 	ProcessStateStarting machine.StateType = "STARTING"
@@ -24,6 +26,7 @@ const (
 type ProcessMachineContext struct {
 	Process    Processer
 	Starttries int
+	LastError  error
 }
 
 func NewProcessMachine(process *Process) *machine.Machine {
@@ -37,6 +40,10 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 		StateNodes: machine.StateNodes{
 			ProcessStateStopped: machine.StateNode{
+				Actions: []machine.Action{
+					PrintCurrentStateAction,
+				},
+
 				On: machine.Events{
 					ProcessEventStart: ProcessStateStarting,
 				},
@@ -44,6 +51,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateStarting: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessStartAction,
 				},
 
@@ -56,6 +64,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateBackoff: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessBackoffAction,
 				},
 
@@ -67,6 +76,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateRunning: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessResetStarttriesAction,
 				},
 
@@ -78,6 +88,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateStopping: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessStopAction,
 					ProcessResetStarttriesAction,
 				},
@@ -89,6 +100,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateExited: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessExitedAction,
 				},
 
@@ -99,6 +111,7 @@ func NewProcessMachine(process *Process) *machine.Machine {
 
 			ProcessStateFatal: machine.StateNode{
 				Actions: []machine.Action{
+					PrintCurrentStateAction,
 					ProcessResetStarttriesAction,
 				},
 
