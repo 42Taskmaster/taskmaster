@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -206,7 +207,21 @@ func (program *Program) setConfig(task Tasker) error {
 
 	newConfig := programTaskWithPayload.Payload.(ProgramConfiguration)
 
+	restartProcesses := false
+	if newConfig.Cmd != program.configuration.Cmd ||
+		!reflect.DeepEqual(newConfig.Env, program.configuration.Env) ||
+		newConfig.Umask != program.configuration.Umask ||
+		newConfig.Stdout != program.configuration.Stdout ||
+		newConfig.Stderr != program.configuration.Stderr ||
+		newConfig.Workingdir != program.configuration.Workingdir {
+		restartProcesses = true
+	}
+
 	program.configuration = newConfig
+
+	if restartProcesses {
+		program.restartAllProcesses(nil)
+	}
 
 	oldNumProcess := len(program.processes)
 	newNumProcesses := newConfig.Numprocs

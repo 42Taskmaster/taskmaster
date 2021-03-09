@@ -32,6 +32,8 @@ var (
 	ValidationIssueUnexpectedMapKey   = errors.New("unexpected map key")
 	ValidationIssueUnexpectedValue    = errors.New("unexpected value")
 	ValidationIssueUnexpectedType     = errors.New("unexpected type")
+	ValidationIssueInvalidPath        = errors.New("invalid path")
+	ValidationIssueNullChar           = errors.New("string cannot contains null char")
 )
 
 type ErrProgramsYamlValidation struct {
@@ -234,6 +236,13 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 			}
 		}
 
+		if hasNullChar(programName) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Name",
+				Issue: ValidationIssueNullChar,
+			}
+		}
+
 		config.Name = programName
 	}
 
@@ -243,12 +252,18 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 			Issue: ValidationIssueEmptyField,
 		}
 	}
+	if hasNullChar(*program.Cmd) {
+		return config, &ErrProgramsYamlValidation{
+			Field: "Cmd",
+			Issue: ValidationIssueNullChar,
+		}
+	}
 
 	config.Cmd = *program.Cmd
 
 	if program.Numprocs == nil {
 		config.Numprocs = 1
-	} else if *program.Numprocs < 0 || *program.Numprocs > 100 {
+	} else if *program.Numprocs < 1 || *program.Numprocs > 100 {
 		return config, &ErrProgramsYamlValidation{
 			Field: "Numprocs",
 			Issue: ValidationIssueValueOutsideBounds,
@@ -280,6 +295,12 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	if program.Workingdir != nil {
+		if hasNullChar(*program.Workingdir) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Workingdir",
+				Issue: ValidationIssueNullChar,
+			}
+		}
 		config.Workingdir = *program.Workingdir
 	}
 
@@ -349,12 +370,24 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	if program.Stdout == nil {
 		config.Stdout = string(StdTypeAuto)
 	} else {
+		if hasNullChar(*program.Stdout) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Stdout",
+				Issue: ValidationIssueNullChar,
+			}
+		}
 		config.Stdout = *program.Stdout
 	}
 
 	if program.Stderr == nil {
 		config.Stderr = string(StdTypeAuto)
 	} else {
+		if hasNullChar(*program.Stderr) {
+			return config, &ErrProgramsYamlValidation{
+				Field: "Stderr",
+				Issue: ValidationIssueNullChar,
+			}
+		}
 		config.Stderr = *program.Stderr
 	}
 
@@ -374,6 +407,15 @@ func (program *ProgramYaml) Validate(args ProgramYamlValidateArgs) (ProgramConfi
 	}
 
 	return config, nil
+}
+
+func hasNullChar(s string) bool {
+	for _, c := range s {
+		if c == rune(0) {
+			return true
+		}
+	}
+	return false
 }
 
 func isValidEnvironementVariableName(s string) bool {

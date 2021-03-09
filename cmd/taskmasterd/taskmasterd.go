@@ -159,6 +159,12 @@ func (taskmasterd *Taskmasterd) Monitor() {
 				break
 			}
 
+			_, ok := programs[configuration.Name]
+			if ok {
+				addProgramConfigurationTask.ErrorChan <- fmt.Errorf("program '%s' already exists", configuration.Name)
+				break
+			}
+
 			go taskmasterd.LoadProgramConfiguration(configuration)
 
 			taskmasterd.ProgramsConfiguration.Programs[configuration.Name] = programConfiguration
